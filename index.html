@@ -16,13 +16,14 @@
       <div class="logo">🧠</div>
       <div>
         <div class="title">Diario Cefalea</div>
-        <div class="subtitle">Registro attacchi • Export CSV • Offline</div>
+        <div class="subtitle">Registro attacchi • Stampa mensile • Export CSV • Offline</div>
       </div>
     </div>
 
     <div class="header-actions">
       <button id="btnInstall" class="btn ghost" hidden>Installa</button>
       <button id="btnExport" class="btn">Esporta CSV</button>
+      <button id="btnPrint" class="btn ghost">PDF / Stampa</button>
       <button id="btnBackup" class="btn ghost">Backup JSON</button>
       <label class="btn ghost file-btn">
         Importa
@@ -140,12 +141,44 @@
     </section>
 
     <section class="card">
-      <h2>Nota utile</h2>
+      <div class="row">
+        <h2>Stampa mensile (giorno per giorno)</h2>
+        <div class="filters">
+          <div class="field">
+            <label>Mese stampa</label>
+            <input id="printMonth" type="month" />
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button id="btnPrint2" class="btn ghost" type="button">PDF / Stampa</button>
+          </div>
+        </div>
+      </div>
+
       <p class="muted">
-        “Compila ogni riga indicando la frequenza, intensità, durata e risposta ai farmaci.”
+        Compila ogni riga indicando la frequenza, intensità, durata e risposta ai farmaci.
       </p>
+
+      <div class="table-wrap">
+        <table class="table" id="monthlyTable">
+          <thead>
+            <tr>
+              <th>Giorno</th>
+              <th>Intensità (1–10)</th>
+              <th>Durata (ore)</th>
+              <th>Farmaci usati</th>
+              <th>Efficacia</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody id="monthlyRows"></tbody>
+        </table>
+      </div>
     </section>
   </main>
+
+  <!-- Area stampa: viene compilata via JS -->
+  <div id="printArea" class="print-area" aria-hidden="true"></div>
 
   <script src="app.js"></script>
 </body>

@@ -1,4 +1,5 @@
 const KEY = "cefalea_attacks_v1";
+const KEY_NAME = "cefalea_patient_name_v1";
 
 const el = (id) => document.getElementById(id);
 
@@ -23,6 +24,8 @@ const printMonth = el("printMonth");
 const monthlyRows = el("monthlyRows");
 const printArea = el("printArea");
 
+const patientNameInput = el("patientName");
+
 let deferredPrompt = null;
 const btnInstall = el("btnInstall");
 
@@ -32,6 +35,13 @@ function load(){
 }
 function save(list){
   localStorage.setItem(KEY, JSON.stringify(list));
+}
+
+function getPatientName(){
+  return (localStorage.getItem(KEY_NAME) || "").trim();
+}
+function setPatientName(v){
+  localStorage.setItem(KEY_NAME, (v || "").trim());
 }
 
 function isoToday(){
@@ -46,7 +56,7 @@ function monthNow(){
 }
 function isWeekend(dateISO){
   const d = new Date(dateISO + "T00:00:00");
-  const day = d.getDay(); // 0 Sun .. 6 Sat
+  const day = d.getDay();
   return day === 0 || day === 6;
 }
 function fmtDate(dateISO, timeHHMM){
@@ -269,13 +279,12 @@ function attacksByDayForMonth(yyyyMM){
   const end = endDate.toISOString().slice(0,10);
   const monthAttacks = list.filter(a => a.date >= start && a.date < end);
 
-  const map = new Map(); // date -> [attacks]
+  const map = new Map();
   for (const a of monthAttacks){
     const arr = map.get(a.date) || [];
     arr.push(a);
     map.set(a.date, arr);
   }
-  // ordina per ora
   for (const [k, arr] of map.entries()){
     arr.sort((x,y)=> (x.time||"").localeCompare(y.time||""));
   }
@@ -307,8 +316,6 @@ function renderMonthlyTable(){
       continue;
     }
 
-    // Se nello stesso giorno ci sono più attacchi, li mettiamo “compattati”
-    // intensità: max, durata: somma, farmaci: unione, efficacia: peggiore, note: concatenate
     const maxInt = Math.max(...dayAttacks.map(a => Number(a.intensity||0)));
     const sumDur = (dayAttacks.reduce((s,a)=> s + Number(a.duration||0), 0)).toFixed(1);
     const medsSet = new Set();
@@ -344,16 +351,29 @@ function renderMonthlyTable(){
 function printMonthlyPDF(){
   const m = printMonth.value || monthNow();
   const label = monthLabel(m);
+  const nome = getPatientName() || "__________________________";
 
   const tableHtml = el("monthlyTable").outerHTML;
 
-  // crea pagina stampa minimale
   printArea.innerHTML = `
     <div class="print-sheet">
+      <div class="ptv-head">
+        <div class="ptv-title">FONDAZIONE PTV</div>
+        <div class="ptv-sub">POLICLINICO TOR VERGATA</div>
+      </div>
+
       <h1>Diario Attacchi di Cefalea – ${escapeHtml(label)}</h1>
-      <p>Compila ogni riga indicando la frequenza, intensità, durata e risposta ai farmaci.</p>
+
+      <div class="ptv-meta">
+        <div><strong>Nome e Cognome:</strong> ${escapeHtml(nome)}</div>
+        <div><strong>Referente Centro Cefalee:</strong> Dr.ssa Maria Albanese</div>
+      </div>
+
+      <p class="ptv-instr">Compila ogni riga indicando la frequenza, intensità, durata e risposta ai farmaci.</p>
+
       ${tableHtml}
-      <p class="print-foot">Generato dall’app Diario Cefalea</p>
+
+      <p class="print-foot">Documento generato dall’app Diario Cefalea</p>
     </div>
   `;
 
@@ -403,6 +423,11 @@ btnDeleteAll.addEventListener("click", () => {
   render();
 });
 
+// stampa
+btnPrint.addEventListener("click", printMonthlyPDF);
+btnPrint2.addEventListener("click", printMonthlyPDF);
+printMonth.addEventListener("change", renderMonthlyTable);
+
 month.addEventListener("change", render);
 onlyWeekend.addEventListener("change", render);
 q.addEventListener("input", () => {
@@ -417,10 +442,10 @@ fileImport.addEventListener("change", (e) => {
   fileImport.value = "";
 });
 
-// stampa
-btnPrint.addEventListener("click", printMonthlyPDF);
-btnPrint2.addEventListener("click", printMonthlyPDF);
-printMonth.addEventListener("change", renderMonthlyTable);
+// Nome e Cognome: salva automaticamente
+patientNameInput.addEventListener("input", () => {
+  setPatientName(patientNameInput.value);
+});
 
 // Install PWA
 window.addEventListener("beforeinstallprompt", (e) => {
@@ -440,6 +465,9 @@ btnInstall.addEventListener("click", async () => {
 el("date").value = isoToday();
 month.value = monthNow();
 printMonth.value = monthNow();
+
+patientNameInput.value = getPatientName();
+
 render();
 
 // Service worker

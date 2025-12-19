@@ -170,70 +170,79 @@ td{font-size:14px}
   .actions{flex-direction:column; align-items:stretch}
 }
 
-
 /* ====== STAMPA / PDF ====== */
 .print-area { display:none; }
 
 @media print{
-  body{ background:#fff; color:#111; }
-  .app-header,
-  .container > .card:not(:last-child),
-  .header-actions,
-  .filters,
-  .footer-actions { display:none !important; }
+  @page { size: A4 portrait; margin: 12mm; }
 
-  .print-area { display:block !important; }
+  /* Nasconde TUTTO tranne l'area di stampa */
+  body > :not(.print-area){ display:none !important; }
+  .print-area{ display:block !important; }
+
+  body{
+    background:#fff !important;
+    color:#111 !important;
+    margin:0 !important;
+  }
 
   .print-sheet{
-    padding: 14mm;
+    padding: 0;
     font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
     color:#111;
   }
 
   .ptv-head{
     text-align:center;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
   .ptv-title{
     font-weight: 900;
     letter-spacing: .08em;
-    font-size: 14px;
+    font-size: 13px;
   }
   .ptv-sub{
     font-weight: 700;
     letter-spacing: .04em;
-    font-size: 12px;
+    font-size: 11px;
     color:#333;
     margin-top: 2px;
   }
 
-  .print-sheet h1{ margin:10px 0 8px 0; font-size:16px; }
-
-  .ptv-meta{
-    display:flex;
-    justify-content:space-between;
-    gap:12px;
-    flex-wrap:wrap;
-    font-size:12px;
-    color:#111;
-    margin: 6px 0 8px 0;
+  .print-sheet h1{
+    margin: 8px 0 6px 0;
+    font-size: 15px;
   }
 
+  .ptv-meta{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 12px;
+    font-size: 11px;
+    margin: 6px 0 8px 0;
+  }
   .ptv-instr{
-    margin: 0 0 10px 0;
-    font-size:12px;
+    margin: 0 0 8px 0;
+    font-size: 11px;
     color:#333;
   }
 
+  /* Tabella: più stabile e con intestazione ripetuta su ogni pagina */
   .print-sheet table{
     width:100%;
     border-collapse: collapse;
-    font-size:11px;
+    table-layout: fixed;
+    font-size: 10.5px;
   }
+  .print-sheet thead{ display: table-header-group; }
+  .print-sheet tfoot{ display: table-footer-group; }
+
   .print-sheet th, .print-sheet td{
-    border:1px solid #bbb;
-    padding:6px;
-    vertical-align:top;
+    border: 1px solid #bbb;
+    padding: 5px;
+    vertical-align: top;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
   }
   .print-sheet th{
     background:#f2f2f2;
@@ -241,9 +250,15 @@ td{font-size:14px}
     letter-spacing:.04em;
   }
 
+  /* Evita che una riga venga spezzata a metà tra due pagine */
+  .print-sheet tr{
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
   .print-foot{
-    margin-top:10px;
-    font-size:10px;
+    margin-top: 8px;
+    font-size: 10px;
     color:#555;
     text-align:right;
   }

@@ -668,12 +668,12 @@ function kpiReport(yyyyMM){
   };
 }
 
-function cloneCanvas(source){
+function cloneCanvasScaled(source, targetW, targetH){
   const c = document.createElement("canvas");
-  c.width = source.width;
-  c.height = source.height;
+  c.width = targetW;
+  c.height = targetH;
   const ctx = c.getContext("2d");
-  ctx.drawImage(source, 0, 0);
+  ctx.drawImage(source, 0, 0, targetW, targetH);
   return c;
 }
 

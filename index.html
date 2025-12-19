@@ -146,8 +146,9 @@
             <div class="muted">Filtra e consulta gli attacchi registrati</div>
           </div>
           <div class="toolbar">
-            <button id="btnExportMonth" class="btn">Esporta CSV (mese)</button>
-            <button id="btnPrintReport" class="btn">PDF / Stampa</button>
+            <button id="btnExportMonth" class="btn">Esporta CSV</button>
+            <!-- ID UNICO -->
+            <button id="btnPrintReportTop" class="btn">PDF / Stampa</button>
             <button id="btnBackup" class="btn">Backup JSON</button>
             <label class="btn btn-ghost">
               Importa
@@ -179,10 +180,8 @@
 
         <div id="stats" class="stats"></div>
 
-        <!-- mobile cards -->
         <div id="cards" class="cards"></div>
 
-        <!-- desktop table -->
         <div class="table-wrap">
           <table class="table">
             <thead>
@@ -265,7 +264,8 @@
               <label for="printMonth">Mese</label>
               <input id="printMonth" type="month" />
             </div>
-            <button class="btn btn-primary" id="btnPrintReport">Genera PDF / Stampa</button>
+            <!-- ID UNICO -->
+            <button class="btn btn-primary" id="btnPrintReportBottom">Genera PDF / Stampa</button>
           </div>
         </div>
 
@@ -312,7 +312,7 @@
       </div>
     </section>
 
-    <!-- AREA STAMPA -->
+    <!-- AREA STAMPA (non più indispensabile, ma la lasciamo) -->
     <div id="printArea" class="print-area" aria-hidden="true"></div>
   </main>
 

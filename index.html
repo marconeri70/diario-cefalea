@@ -34,6 +34,17 @@
 
   <main class="container">
     <section class="card">
+      <h2>Dati intestazione</h2>
+      <div class="grid">
+        <div class="field span-2">
+          <label>Nome e Cognome (chi compila il diario)</label>
+          <input id="patientName" type="text" placeholder="Es. Marco Neri" />
+          <small class="hint">Questo nome verrà riportato nell’intestazione della stampa PDF.</small>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
       <h2>Nuovo attacco</h2>
 
       <form id="attackForm" class="grid">
@@ -177,7 +188,6 @@
     </section>
   </main>
 
-  <!-- Area stampa: viene compilata via JS -->
   <div id="printArea" class="print-area" aria-hidden="true"></div>
 
   <script src="app.js"></script>

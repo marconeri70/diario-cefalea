@@ -940,24 +940,49 @@ function printReport(){
     const label = monthLabel(m);
     const nome = getPatientName() || "__________________________";
 
+    // aggiorno tabella e grafici prima di generare il print
     renderMonthlyTable();
     drawChartsFor(m);
 
+    // trasformo i canvas in immagini (così in stampa si vedono sempre)
+    const imgInt = chartIntensity ? chartIntensity.toDataURL("image/png", 1.0) : "";
+    const imgTrig = chartTriggers ? chartTriggers.toDataURL("image/png", 1.0) : "";
+    const imgMeds = chartMeds ? chartMeds.toDataURL("image/png", 1.0) : "";
+
     printArea.innerHTML = `
       <div class="print-sheet">
+        <div class="ptv-head">
+          <div class="ptv-title">FONDAZIONE PTV</div>
+          <div class="ptv-sub">POLICLINICO TOR VERGATA</div>
+        </div>
+
         <h1>Report Cefalea – ${escapeHtml(label)}</h1>
+
         <div class="ptv-meta">
           <div><strong>Nome e Cognome:</strong> ${escapeHtml(nome)}</div>
           <div><strong>Referente Centro Cefalee:</strong> Dr.ssa Maria Albanese</div>
+          <div><strong>Data generazione:</strong> ${new Date().toLocaleDateString("it-IT")}</div>
         </div>
+
         <p class="ptv-instr">Compila ogni riga indicando la frequenza, intensità, durata e risposta ai farmaci.</p>
-        <div style="margin-top:12px">
-          ${el("monthlyTable") ? el("monthlyTable").outerHTML : ""}
-        </div>
+
+        <h3>Intensità (max) giorno per giorno</h3>
+        ${imgInt ? `<img class="print-chart-img" src="${imgInt}" alt="Grafico Intensità">` : ""}
+
+        <h3>Trigger più frequenti</h3>
+        ${imgTrig ? `<img class="print-chart-img" src="${imgTrig}" alt="Grafico Trigger">` : ""}
+
+        <h3>Farmaci più usati</h3>
+        ${imgMeds ? `<img class="print-chart-img" src="${imgMeds}" alt="Grafico Farmaci">` : ""}
+
+        <div class="page-break"></div>
+
+        <h3>Tabella giornaliera</h3>
+        ${el("monthlyTable") ? el("monthlyTable").outerHTML : ""}
       </div>
     `;
 
-    setTimeout(() => window.print(), 80);
+    setTimeout(() => window.print(), 120);
   }catch(err){
     alert("Errore stampa/PDF: " + (err?.message || err));
     console.error(err);

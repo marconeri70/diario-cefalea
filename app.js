@@ -1,7 +1,8 @@
 /* =========================
-   Diario Cefalea - app.js (COMPLETO + EDIT GIORNO)
+   Diario Cefalea - app.js (COMPLETO + EDIT GIORNO + ADD GIORNO)
    - Registro attacchi + modifica/elimina
    - Report mensile: clic sul giorno -> modal con attacchi del giorno (modifica/elimina)
+   - Modal giorno: + Aggiungi attacco in questo giorno (prefill data e vai al Diario)
    - Tema Auto/Chiaro/Scuro
    - Grafici mensili (canvas)
    - Export CSV + Backup/Import JSON
@@ -67,6 +68,9 @@ const chartMeds = el("chartMeds");
 
 /* ===== Edit state ===== */
 let EDIT_ID = null;
+
+/* ===== Day modal state ===== */
+let DAY_MODAL_DATE = null;
 
 /* ===== Helpers ===== */
 function load(){
@@ -469,15 +473,13 @@ function renderMonthlyTable(){
 
     const dayAttacks = map.get(iso) || [];
     const editBtn = dayAttacks.length
-      ? `<button class="iconbtn no-print" data-day="${iso}" title="Modifica giorno">✏️</button>`
+      ? `<button class="iconbtn no-print" data-day="${iso}" title="Gestisci giorno">✏️</button>`
       : "";
 
     if (dayAttacks.length === 0){
       html += `
         <tr data-dayrow="${iso}">
-          <td>
-            ${String(day).padStart(2,"0")}/${m.slice(5,7)} (${dow})${wk}
-          </td>
+          <td>${String(day).padStart(2,"0")}/${m.slice(5,7)} (${dow})${wk}</td>
           <td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>
         </tr>
       `;
@@ -485,7 +487,6 @@ function renderMonthlyTable(){
     }
 
     const s = summarizeDayAttacks(dayAttacks);
-
     html += `
       <tr data-dayrow="${iso}">
         <td>
@@ -504,7 +505,6 @@ function renderMonthlyTable(){
   }
   monthlyRows.innerHTML = html;
 
-  // click sul tasto ✏️ -> modal elenco attacchi del giorno
   document.querySelectorAll("[data-day]").forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -513,7 +513,6 @@ function renderMonthlyTable(){
     });
   });
 
-  // click su tutta la riga -> apri modal se ci sono attacchi
   document.querySelectorAll("[data-dayrow]").forEach(tr => {
     tr.addEventListener("click", () => {
       const dateISO = tr.getAttribute("data-dayrow");
@@ -556,6 +555,7 @@ function ensureModalCSS(){
     }
     .dc-modal .ttl{ font-weight:900; font-size:16px; }
     .dc-modal .sub{ font-size:12px; color: var(--muted, #a6b3d1); margin-top:3px; }
+    .dc-modal .btnRow{ display:flex; gap:8px; align-items:center; justify-content:flex-end; flex-wrap:wrap; }
     .dc-modal .list{ display:flex; flex-direction:column; gap:10px; margin-top:10px; }
     .dc-modal .item{
       border:1px solid color-mix(in srgb, var(--line, #24314f) 40%, transparent);
@@ -583,9 +583,12 @@ function ensureDayModal(){
       <div class="hdr">
         <div>
           <div class="ttl" id="dcDayTitle">Giorno</div>
-          <div class="sub" id="dcDaySub">Tocca un attacco per modificarlo</div>
+          <div class="sub" id="dcDaySub">Gestisci gli attacchi registrati</div>
         </div>
-        <button class="iconbtn" id="dcDayClose" title="Chiudi">✖</button>
+        <div class="btnRow">
+          <button class="iconbtn" id="dcDayAdd" title="Aggiungi attacco in questo giorno">＋ Aggiungi</button>
+          <button class="iconbtn" id="dcDayClose" title="Chiudi">✖</button>
+        </div>
       </div>
       <div class="list" id="dcDayList"></div>
     </div>
@@ -596,10 +599,33 @@ function ensureDayModal(){
     if (e.target === overlay) closeDayModal();
   });
   el("dcDayClose")?.addEventListener("click", closeDayModal);
+
+  // Pulsante "Aggiungi" (usa DAY_MODAL_DATE valorizzata da openDayModal)
+  el("dcDayAdd")?.addEventListener("click", () => {
+    if (!DAY_MODAL_DATE) return;
+    closeDayModal();
+    startAddForDay(DAY_MODAL_DATE);
+  });
+}
+
+function startAddForDay(dateISO){
+  // Nuovo attacco su quel giorno: NON in modifica
+  EDIT_ID = null;
+  setSubmitLabel();
+
+  // Prefill data, pulisci campi, resta sul Diario
+  resetFormFields();
+  if (el("date")) el("date").value = dateISO;
+
+  // Porta su Diario
+  switchTo("diario");
+  form?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function openDayModal(dateISO){
   ensureDayModal();
+  DAY_MODAL_DATE = dateISO;
+
   const overlay = el("dcDayOverlay");
   const listWrap = el("dcDayList");
   const title = el("dcDayTitle");
@@ -609,11 +635,12 @@ function openDayModal(dateISO){
 
   const d = new Date(dateISO + "T00:00:00");
   const nice = d.toLocaleDateString("it-IT", { weekday:"long", day:"2-digit", month:"long", year:"numeric" });
-  title.textContent = `Modifica giorno: ${nice}`;
-  sub.textContent = list.length ? `Attacchi registrati: ${list.length}` : `Nessun attacco registrato`;
+  title.textContent = `Giorno: ${nice}`;
+  sub.textContent = list.length ? `Attacchi registrati: ${list.length}` : `Nessun attacco registrato (puoi aggiungerne uno)`;
 
+  // Se non ci sono attacchi: mostro messaggio + tasto aggiungi resta disponibile
   if (!list.length){
-    listWrap.innerHTML = `<div class="mut">Nessun dato per questo giorno.</div>`;
+    listWrap.innerHTML = `<div class="mut">Nessun dato per questo giorno. Premi “＋ Aggiungi”.</div>`;
   } else {
     listWrap.innerHTML = list.map(a => {
       const meds = (a.meds && a.meds.length) ? a.meds.join(", ") : "—";
@@ -1096,7 +1123,6 @@ if (form){
       notes
     };
 
-    // ✅ se stai modificando, aggiorna invece di aggiungere
     if (EDIT_ID){
       updateAttack(EDIT_ID, payload);
       cancelEdit();
@@ -1111,7 +1137,6 @@ if (form){
 }
 
 btnClear?.addEventListener("click", () => {
-  // se stavi modificando, il clear diventa “Annulla modifica”
   if (EDIT_ID) cancelEdit();
   else resetFormFields();
 });
@@ -1145,23 +1170,18 @@ fileImport?.addEventListener("change", (e) => {
 
 btnPrintReport?.addEventListener("click", printReport);
 
-/* patient name */
 patientNameInput?.addEventListener("input", () => setPatientName(patientNameInput.value));
 
-/* stress slider */
 stress?.addEventListener("input", () => {
   if (stressVal) stressVal.textContent = stress.value;
 });
 
-/* charts refresh */
 btnRefreshCharts?.addEventListener("click", () => drawChartsFor(statsMonth?.value || monthNow()));
 statsMonth?.addEventListener("change", () => drawChartsFor(statsMonth?.value || monthNow()));
 printMonth?.addEventListener("change", renderMonthlyTable);
 
-/* theme */
 themeSelect?.addEventListener("change", () => setTheme(themeSelect.value));
 
-/* tabs */
 tabs.forEach(t => {
   t.addEventListener("click", () => {
     switchTo(t.getAttribute("data-view"));
@@ -1184,21 +1204,17 @@ btnInstall?.addEventListener("click", async () => {
 
 /* Init */
 (function init(){
-  // theme
   const th = getTheme();
   if (themeSelect) themeSelect.value = th;
   setTheme(th);
 
-  // date defaults
   if (el("date")) el("date").value = isoToday();
   if (month) month.value = monthNow();
   if (statsMonth) statsMonth.value = monthNow();
   if (printMonth) printMonth.value = monthNow();
 
-  // patient name
   if (patientNameInput) patientNameInput.value = getPatientName();
 
-  // stress display
   if (stressVal && stress) stressVal.textContent = stress.value;
 
   setSubmitLabel();
@@ -1207,7 +1223,6 @@ btnInstall?.addEventListener("click", async () => {
   render();
   drawChartsFor(statsMonth?.value || monthNow());
 
-  // Service worker
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("./sw.js").catch(()=>{});

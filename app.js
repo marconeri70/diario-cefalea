@@ -1,8 +1,8 @@
 /* =========================
    Diario Cefalea - app.js (COMPLETO, aggiornato)
-   FIX: grafici che NON uscivano in stampa/PDF
-   - Stampa robusta: aspetta che le immagini (dataURL dei canvas) siano caricate prima di print()
-   - CSS stampa: regole per immagini e anti-spezzatura
+   - Report: azioni giorno per giorno (＋ Aggiungi / Apri)
+   - Tap su giorno: porta su Diario con data pronta
+   - PDF/Print: tabella pulita senza bottoni, grafici inclusi (attende caricamento)
    ========================= */
 
 const KEY = "cefalea_attacks_v2";
@@ -368,7 +368,7 @@ function startEdit(id){
 
   setSubmitLabel();
   switchTo("diario");
-  form?.scrollIntoView({ behavior: "smooth", block: "start" });
+  el("card-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 function cancelEdit(){
   EDIT_ID = null;
@@ -459,7 +459,7 @@ function render(){
 }
 
 /* =========================
-   Report monthly table
+   Report helpers
    ========================= */
 function summarizeDayAttacks(dayAttacks){
   const maxInt = Math.max(...dayAttacks.map(a => Number(a.intensity||0)));
@@ -492,6 +492,55 @@ function summarizeDayAttacks(dayAttacks){
   return { maxInt, sumDur, meds, worstEff, trigNote };
 }
 
+function goToDiaryWithDate(dateISO){
+  if (EDIT_ID) cancelEdit();
+  switchTo("diario");
+  setDateField(dateISO);
+  el("card-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  setTimeout(() => el("intensity")?.focus(), 250);
+}
+
+function goToDiaryOpenDay(dateISO){
+  const m = dateISO.slice(0,7);
+  if (month) month.value = m;
+  if (q) q.value = dateISO; // filtra per data
+  if (onlyWeekend) onlyWeekend.value = "all";
+  render();
+  switchTo("diario");
+  el("card-registro")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function bindReportActions(){
+  // + Aggiungi
+  document.querySelectorAll("[data-add-date]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const dateISO = btn.getAttribute("data-add-date");
+      if (dateISO) goToDiaryWithDate(dateISO);
+    });
+  });
+
+  // Apri giorno
+  document.querySelectorAll("[data-open-date]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const dateISO = btn.getAttribute("data-open-date");
+      if (dateISO) goToDiaryOpenDay(dateISO);
+    });
+  });
+
+  // Tap su riga giorno
+  document.querySelectorAll("[data-dayrow]").forEach(tr => {
+    tr.addEventListener("click", () => {
+      const dateISO = tr.getAttribute("data-dayrow");
+      if (dateISO) goToDiaryWithDate(dateISO);
+    });
+  });
+}
+
+/* =========================
+   Report monthly table (UI)
+   ========================= */
 function renderMonthlyTable(){
   if (!monthlyRows || !printMonth) return;
 
@@ -512,9 +561,12 @@ function renderMonthlyTable(){
 
     if (dayAttacks.length === 0){
       html += `
-        <tr>
+        <tr data-dayrow="${iso}">
           <td>${String(day).padStart(2,"0")}/${m.slice(5,7)} (${dow})${wk}</td>
           <td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>
+          <td style="white-space:nowrap; text-align:right">
+            <button class="btn btn-primary" type="button" data-add-date="${iso}">＋ Aggiungi</button>
+          </td>
         </tr>
       `;
       continue;
@@ -522,17 +574,23 @@ function renderMonthlyTable(){
 
     const s = summarizeDayAttacks(dayAttacks);
     html += `
-      <tr>
+      <tr data-dayrow="${iso}">
         <td>${String(day).padStart(2,"0")}/${m.slice(5,7)} (${dow})${wk}</td>
         <td><strong>${s.maxInt}</strong>/10</td>
         <td>${s.sumDur} h</td>
         <td>${escapeHtml(s.meds || "—")}</td>
         <td>${escapeHtml(s.worstEff || "—")}</td>
         <td>${escapeHtml(s.trigNote || "—")}</td>
+        <td style="white-space:nowrap; text-align:right">
+          <button class="btn btn-primary" type="button" data-add-date="${iso}">＋ Aggiungi</button>
+          <button class="btn btn-ghost" type="button" data-open-date="${iso}">Apri</button>
+        </td>
       </tr>
     `;
   }
+
   monthlyRows.innerHTML = html;
+  bindReportActions();
 }
 
 /* =========================
@@ -626,10 +684,7 @@ function cssColor(varName, fallback){
 function ensureCanvasSize(canvas){
   if (!canvas) return { cssW: 0, cssH: 0, dpr: 1 };
   const dpr = Math.max(1, window.devicePixelRatio || 1);
-
-  // IMPORTANT: quando la tab "Statistiche" non è visibile, clientWidth può essere 0
-  // quindi forziamo una dimensione minima stabile per la generazione dei dataURL.
-  const cssW = Math.max(720, Math.floor(canvas.clientWidth || 0) || 0);  // più largo => più leggibile in stampa
+  const cssW = Math.max(720, Math.floor(canvas.clientWidth || 0) || 0);
   const cssH = Math.max(320, Math.floor(canvas.clientHeight || 0) || 0);
 
   const needW = Math.floor(cssW * dpr);
@@ -690,7 +745,6 @@ function drawBarChart(canvas, labels, values, options){
 
   ctx.fillStyle = options.textColor;
 
-  // Etichette sotto le colonne (giorni)
   const smallFont = n > 25 ? 9 : 11;
   ctx.font = `${smallFont}px system-ui`;
   ctx.textAlign = "center";
@@ -699,7 +753,7 @@ function drawBarChart(canvas, labels, values, options){
   for (let i=0;i<n;i++){
     const x = padL + i*(barW+gap) + barW/2;
     const y = H - padB + 24;
-    if (n > 25 && (i+1) % 2 === 0) continue; // sfoltisce su mesi lunghi
+    if (n > 25 && (i+1) % 2 === 0) continue;
     ctx.fillText(labels[i], x, y);
   }
 }
@@ -763,15 +817,66 @@ function drawChartsFor(yyyyMM){
 }
 
 /* =========================
-   PRINT / PDF - FIX DEFINITIVO GRAFICI
+   PRINT / PDF
    ========================= */
-function buildPrintHTML(yyyyMM){
-  renderMonthlyTable();
+function buildMonthlyTableHTML_ForPrint(yyyyMM){
+  const dcount = daysInMonth(yyyyMM);
+  const map = attacksByDayForMonth(yyyyMM);
 
-  // IMPORTANT: generiamo i grafici PRIMA di convertirli in immagini
+  let body = "";
+  for (let day=1; day<=dcount; day++){
+    const iso = isoOfDay(yyyyMM, day);
+    const d = new Date(iso + "T00:00:00");
+    const dow = d.toLocaleDateString("it-IT", { weekday:"short" });
+    const wk = isWeekend(iso) ? " (weekend)" : "";
+
+    const dayAttacks = map.get(iso) || [];
+
+    if (dayAttacks.length === 0){
+      body += `
+        <tr>
+          <td>${String(day).padStart(2,"0")}/${yyyyMM.slice(5,7)} (${dow})${wk}</td>
+          <td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>
+        </tr>
+      `;
+      continue;
+    }
+
+    const s = summarizeDayAttacks(dayAttacks);
+    body += `
+      <tr>
+        <td>${String(day).padStart(2,"0")}/${yyyyMM.slice(5,7)} (${dow})${wk}</td>
+        <td><strong>${s.maxInt}</strong>/10</td>
+        <td>${s.sumDur} h</td>
+        <td>${escapeHtml(s.meds || "—")}</td>
+        <td>${escapeHtml(s.worstEff || "—")}</td>
+        <td>${escapeHtml(s.trigNote || "—")}</td>
+      </tr>
+    `;
+  }
+
+  return `
+    <table>
+      <thead>
+        <tr>
+          <th>Giorno</th>
+          <th>Intensità</th>
+          <th>Durata</th>
+          <th>Farmaci</th>
+          <th>Risposta</th>
+          <th>Note / Trigger</th>
+        </tr>
+      </thead>
+      <tbody>${body}</tbody>
+    </table>
+  `;
+}
+
+function buildPrintHTML(yyyyMM){
+  // rigenera dati tabella UI + grafici, poi li converte in immagini
+  renderMonthlyTable();
   drawChartsFor(yyyyMM);
 
-  // dataURL dai canvas
   const imgInt = chartIntensity ? chartIntensity.toDataURL("image/png") : "";
   const imgTrig = chartTriggers ? chartTriggers.toDataURL("image/png") : "";
   const imgMeds = chartMeds ? chartMeds.toDataURL("image/png") : "";
@@ -781,13 +886,13 @@ function buildPrintHTML(yyyyMM){
 
   const label = monthLabel(yyyyMM);
   const nome = getPatientName() || "__________________________";
-  const tableHTML = el("monthlyTable") ? el("monthlyTable").outerHTML : "<p>Tabella non disponibile</p>";
+
+  const tableHTMLPrint = buildMonthlyTableHTML_ForPrint(yyyyMM);
 
   const printCSS = `
     @page { size: A4; margin: 12mm; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:#111; }
 
-    /* IMPORTANT per immagini in stampa */
     img{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
     .ptv-head{ display:flex; justify-content:space-between; gap:12px; margin-bottom: 8px; }
@@ -798,7 +903,6 @@ function buildPrintHTML(yyyyMM){
     .ptv-meta{ display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; font-size:11px; margin: 6px 0 8px 0; }
     .ptv-instr{ margin: 0 0 8px 0; font-size:11px; color:#333; }
 
-    /* Evita che i grafici vengano spezzati tra pagine */
     .chart{ border:1px solid #ddd; border-radius:10px; padding: 6mm; margin: 6mm 0; break-inside: avoid; page-break-inside: avoid; }
     .chart img{ display:block; width:100%; height:auto; max-height:85mm; object-fit:contain; }
 
@@ -858,13 +962,12 @@ function buildPrintHTML(yyyyMM){
         <div class="page-break"></div>
 
         <h3>Tabella giornaliera</h3>
-        ${tableHTML}
+        ${tableHTMLPrint}
       </body>
     </html>
   `;
 }
 
-/* FIX: aspetta che le immagini (grafici) siano cariche prima di stampare */
 async function printReport(){
   try{
     const m = (printMonth?.value || monthNow()).trim();
@@ -1039,7 +1142,10 @@ window.addEventListener("beforeinstallprompt", (e) => {
   if (btnInstall) btnInstall.hidden = false;
 });
 btnInstall?.addEventListener("click", async () => {
-  if (!deferredPrompt) return;
+  if (!deferredPrompt) {
+    alert("Installazione non disponibile ora.\nApri questo link in Chrome → menu ⋮ → 'Installa app' / 'Aggiungi a schermata Home'.");
+    return;
+  }
   deferredPrompt.prompt();
   await deferredPrompt.userChoice;
   deferredPrompt = null;

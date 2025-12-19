@@ -376,12 +376,14 @@ td{font-size:14px}
 /* =========================
    STAMPA / PDF (REPORT)
    MOSTRA SOLO printArea
+   + miglioramenti impaginazione
    ========================= */
 .print-area{ display:none; }
 
 @media print{
   @page { size: A4 portrait; margin: 12mm; }
 
+  /* Mostra SOLO l'area di stampa */
   body > :not(.print-area){ display:none !important; }
   .print-area{ display:block !important; }
 
@@ -389,6 +391,12 @@ td{font-size:14px}
     background:#fff !important;
     color:#111 !important;
     margin:0 !important;
+  }
+
+  /* utility: forzare una nuova pagina */
+  .page-break{
+    break-before: page;
+    page-break-before: always;
   }
 
   .print-sheet{
@@ -469,11 +477,14 @@ td{font-size:14px}
     font-size: 10.5px;
   }
 
+  /* blocchi grafici: più compatti e non spezzati */
   .print-chart{
     border:1px solid #bbb;
     border-radius: 10px;
     padding: 8px;
     margin: 10px 0;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
   .print-chart h3{
     margin:0 0 6px 0;
@@ -485,8 +496,10 @@ td{font-size:14px}
   .print-chart canvas{
     width: 100% !important;
     height: auto !important;
+    max-height: 180px !important; /* ✅ grafici più piccoli */
   }
 
+  /* tabella: intestazione ripetuta e colonne bilanciate */
   .print-sheet table{
     width:100%;
     border-collapse: collapse;
@@ -508,10 +521,19 @@ td{font-size:14px}
     letter-spacing:.04em;
   }
 
+  /* evita righe spezzate a metà pagina */
   .print-sheet tr{
     break-inside: avoid;
     page-break-inside: avoid;
   }
+
+  /* ✅ larghezze colonne (Report: Giorno, Intensità, Durata, Farmaci, Efficacia, Trigger/Note) */
+  .print-sheet th:nth-child(1), .print-sheet td:nth-child(1){ width: 16%; }
+  .print-sheet th:nth-child(2), .print-sheet td:nth-child(2){ width: 10%; }
+  .print-sheet th:nth-child(3), .print-sheet td:nth-child(3){ width: 12%; }
+  .print-sheet th:nth-child(4), .print-sheet td:nth-child(4){ width: 20%; }
+  .print-sheet th:nth-child(5), .print-sheet td:nth-child(5){ width: 10%; }
+  .print-sheet th:nth-child(6), .print-sheet td:nth-child(6){ width: 32%; }
 
   .print-foot{
     margin-top: 8px;

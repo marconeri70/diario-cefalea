@@ -576,3 +576,39 @@ canvas {
     page-break-before: always;
   }
 }
+
+/* =========================
+   REGISTRO: scroll e leggibilità su mobile
+   ========================= */
+
+/* La pagina deve poter scorrere sempre */
+html, body {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+/* Se hai una .container, evita tagli strani */
+.container {
+  min-height: 100vh;
+}
+
+/* Wrapper per la tabella: scroll orizzontale su mobile */
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 14px;
+}
+
+/* La tabella non deve "stringersi" troppo */
+.table-wrap table {
+  min-width: 820px; /* aumenta/diminuisci se vuoi */
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* Celle più leggibili */
+.table-wrap th,
+.table-wrap td {
+  white-space: nowrap;
+}

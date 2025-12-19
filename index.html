@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="it">
+<html lang="it" data-theme="auto">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -16,14 +16,14 @@
       <div class="logo">🧠</div>
       <div>
         <div class="title">Diario Cefalea</div>
-        <div class="subtitle">Registro attacchi • Stampa mensile • Export CSV • Offline</div>
+        <div class="subtitle">Registro • Trigger • Grafici • Report PDF</div>
       </div>
     </div>
 
     <div class="header-actions">
       <button id="btnInstall" class="btn ghost" hidden>Installa</button>
-      <button id="btnExport" class="btn">Esporta CSV</button>
-      <button id="btnPrint" class="btn ghost">PDF / Stampa</button>
+      <button id="btnExportMonth" class="btn ghost">CSV mese</button>
+      <button id="btnExportAll" class="btn ghost">CSV tutto</button>
       <button id="btnBackup" class="btn ghost">Backup JSON</button>
       <label class="btn ghost file-btn">
         Importa
@@ -32,162 +32,295 @@
     </div>
   </header>
 
+  <nav class="tabs" aria-label="Sezioni">
+    <button class="tab active" data-view="diario">Diario</button>
+    <button class="tab" data-view="statistiche">Statistiche</button>
+    <button class="tab" data-view="report">Report PDF</button>
+    <button class="tab" data-view="impostazioni">Impostazioni</button>
+  </nav>
+
   <main class="container">
-    <section class="card">
-      <h2>Dati intestazione</h2>
-      <div class="grid">
-        <div class="field span-2">
-          <label>Nome e Cognome (chi compila il diario)</label>
-          <input id="patientName" type="text" placeholder="Es. Mario Rossi" />
-          <small class="hint">Questo nome verrà riportato nell’intestazione della stampa PDF.</small>
-        </div>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>Nuovo attacco</h2>
-
-      <form id="attackForm" class="grid">
-        <div class="field">
-          <label>Data</label>
-          <input id="date" type="date" required />
-        </div>
-
-        <div class="field">
-          <label>Ora (opzionale)</label>
-          <input id="time" type="time" />
-        </div>
-
-        <div class="field">
-          <label>Intensità (1–10)</label>
-          <input id="intensity" type="number" min="1" max="10" step="1" required />
-        </div>
-
-        <div class="field">
-          <label>Durata (ore)</label>
-          <input id="duration" type="number" min="0" max="72" step="0.5" required />
-        </div>
-
-        <div class="field">
-          <label>Farmaci usati</label>
-          <select id="meds" multiple size="6">
-            <option value="Relpax (eletriptan)">Relpax (eletriptan)</option>
-            <option value="Ibuprofene (FANS)">Ibuprofene (FANS)</option>
-            <option value="Naproxene (FANS)">Naproxene (FANS)</option>
-            <option value="Ketoprofene (FANS)">Ketoprofene (FANS)</option>
-            <option value="Diclofenac (FANS)">Diclofenac (FANS)</option>
-            <option value="Paracetamolo">Paracetamolo</option>
-          </select>
-          <small class="hint">Puoi selezionare più voci (tieni premuto). Se non hai preso nulla, lascia vuoto.</small>
-        </div>
-
-        <div class="field">
-          <label>Efficacia</label>
-          <select id="efficacy" required>
-            <option value="Nessuna">Nessuna</option>
-            <option value="Parziale" selected>Parziale</option>
-            <option value="Buona">Buona</option>
-            <option value="Ottima">Ottima</option>
-          </select>
-        </div>
-
-        <div class="field span-2">
-          <label>Note (opzionale)</label>
-          <input id="notes" type="text" placeholder="Es. nausea, fotofobia, riposo a letto..." />
-        </div>
-
-        <div class="actions span-2">
-          <button class="btn" type="submit">Salva attacco</button>
-          <button id="btnClear" class="btn ghost" type="button">Svuota campi</button>
-        </div>
-      </form>
-    </section>
-
-    <section class="card">
-      <div class="row">
-        <h2>Registro</h2>
-
-        <div class="filters">
-          <div class="field">
-            <label>Mese</label>
-            <input id="month" type="month" />
+    <!-- ====== VIEW: DIARIO ====== -->
+    <section id="view-diario" class="view active">
+      <section class="card">
+        <h2>Dati intestazione</h2>
+        <div class="grid">
+          <div class="field span-2">
+            <label>Nome e Cognome (chi compila il diario)</label>
+            <input id="patientName" type="text" placeholder="Es. Mario Rossi" />
+            <small class="hint">Verrà riportato nel Report PDF.</small>
           </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Nuovo attacco</h2>
+
+        <form id="attackForm" class="grid">
           <div class="field">
-            <label>Solo weekend</label>
-            <select id="onlyWeekend">
-              <option value="all" selected>Tutti</option>
-              <option value="weekend">Weekend</option>
-              <option value="weekday">Feriali</option>
+            <label>Data</label>
+            <input id="date" type="date" required />
+          </div>
+
+          <div class="field">
+            <label>Ora (opzionale)</label>
+            <input id="time" type="time" />
+          </div>
+
+          <div class="field">
+            <label>Intensità (1–10)</label>
+            <input id="intensity" type="number" min="1" max="10" step="1" required />
+          </div>
+
+          <div class="field">
+            <label>Durata (ore)</label>
+            <input id="duration" type="number" min="0" max="72" step="0.5" required />
+          </div>
+
+          <div class="field">
+            <label>Farmaci usati</label>
+            <select id="meds" multiple size="6">
+              <option value="Relpax (eletriptan)">Relpax (eletriptan)</option>
+              <option value="Ibuprofene (FANS)">Ibuprofene (FANS)</option>
+              <option value="Naproxene (FANS)">Naproxene (FANS)</option>
+              <option value="Ketoprofene (FANS)">Ketoprofene (FANS)</option>
+              <option value="Diclofenac (FANS)">Diclofenac (FANS)</option>
+              <option value="Paracetamolo">Paracetamolo</option>
+            </select>
+            <small class="hint">Puoi selezionare più voci (tieni premuto). Se non hai preso nulla, lascia vuoto.</small>
+          </div>
+
+          <div class="field">
+            <label>Efficacia</label>
+            <select id="efficacy" required>
+              <option value="Nessuna">Nessuna</option>
+              <option value="Parziale" selected>Parziale</option>
+              <option value="Buona">Buona</option>
+              <option value="Ottima">Ottima</option>
             </select>
           </div>
+
+          <div class="divider span-2"></div>
+
           <div class="field">
-            <label>Ricerca note/farmaci</label>
-            <input id="q" type="search" placeholder="Relpax, nausea, FANS..." />
+            <label>Stress (0–10)</label>
+            <input id="stress" type="range" min="0" max="10" step="1" value="0" />
+            <div class="range-row">
+              <small class="muted">0</small>
+              <div class="pill" id="stressVal">0</div>
+              <small class="muted">10</small>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Ore di sonno (ultima notte)</label>
+            <input id="sleepHours" type="number" min="0" max="24" step="0.5" placeholder="Es. 5.5" />
+          </div>
+
+          <div class="field">
+            <label>Meteo (opzionale)</label>
+            <select id="weather">
+              <option value="">—</option>
+              <option value="Sereno/Stabile">Sereno/Stabile</option>
+              <option value="Pioggia/Umidità">Pioggia/Umidità</option>
+              <option value="Vento">Vento</option>
+              <option value="Caldo intenso">Caldo intenso</option>
+              <option value="Freddo intenso">Freddo intenso</option>
+              <option value="Cambio pressione">Cambio pressione</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Alimenti (opzionale)</label>
+            <input id="foods" type="text" placeholder="Es. cioccolato, formaggi, alcol, insaccati..." />
+          </div>
+
+          <div class="field span-2">
+            <label>Trigger (seleziona se vuoi)</label>
+            <div class="chips" id="triggerChips">
+              <label class="chip"><input type="checkbox" value="Stress" /> Stress</label>
+              <label class="chip"><input type="checkbox" value="Poco sonno" /> Poco sonno</label>
+              <label class="chip"><input type="checkbox" value="Meteo" /> Meteo</label>
+              <label class="chip"><input type="checkbox" value="Alimenti" /> Alimenti</label>
+              <label class="chip"><input type="checkbox" value="Schermo/Luce" /> Schermo/Luce</label>
+              <label class="chip"><input type="checkbox" value="Sforzo" /> Sforzo</label>
+              <label class="chip"><input type="checkbox" value="Altro" /> Altro</label>
+            </div>
+          </div>
+
+          <div class="field span-2">
+            <label>Note (opzionale)</label>
+            <input id="notes" type="text" placeholder="Es. nausea, fotofobia, riposo a letto..." />
+          </div>
+
+          <div class="actions span-2">
+            <button class="btn" type="submit">Salva attacco</button>
+            <button id="btnClear" class="btn ghost" type="button">Svuota campi</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card">
+        <div class="row">
+          <h2>Registro</h2>
+
+          <div class="filters">
+            <div class="field">
+              <label>Mese</label>
+              <input id="month" type="month" />
+            </div>
+            <div class="field">
+              <label>Solo weekend</label>
+              <select id="onlyWeekend">
+                <option value="all" selected>Tutti</option>
+                <option value="weekend">Weekend</option>
+                <option value="weekday">Feriali</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Ricerca</label>
+              <input id="q" type="search" placeholder="Relpax, nausea, stress..." />
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="stats" id="stats"></div>
+        <div class="stats" id="stats"></div>
 
-      <div class="table-wrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Intensità</th>
-              <th>Durata</th>
-              <th>Farmaci</th>
-              <th>Efficacia</th>
-              <th>Note</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="rows"></tbody>
-        </table>
-      </div>
+        <!-- Desktop table -->
+        <div class="table-wrap desktop-only">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Int.</th>
+                <th>Dur.</th>
+                <th>Farmaci</th>
+                <th>Efficacia</th>
+                <th>Trigger</th>
+                <th>Note</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
 
-      <div class="footer-actions">
-        <button id="btnDeleteAll" class="btn danger ghost">Cancella tutto</button>
-      </div>
+        <!-- Mobile cards -->
+        <div class="cards mobile-only" id="cards"></div>
+
+        <div class="footer-actions">
+          <button id="btnDeleteAll" class="btn danger ghost">Cancella tutto</button>
+        </div>
+      </section>
     </section>
 
-    <section class="card">
-      <div class="row">
-        <h2>Stampa mensile (giorno per giorno)</h2>
-        <div class="filters">
-          <div class="field">
-            <label>Mese stampa</label>
-            <input id="printMonth" type="month" />
-          </div>
-          <div class="field">
-            <label>&nbsp;</label>
-            <button id="btnPrint2" class="btn ghost" type="button">PDF / Stampa</button>
+    <!-- ====== VIEW: STATISTICHE ====== -->
+    <section id="view-statistiche" class="view">
+      <section class="card">
+        <div class="row">
+          <h2>Statistiche mensili</h2>
+          <div class="filters">
+            <div class="field">
+              <label>Mese</label>
+              <input id="statsMonth" type="month" />
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button id="btnRefreshCharts" class="btn ghost" type="button">Aggiorna</button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <p class="muted">
-        Compila ogni riga indicando la frequenza, intensità, durata e risposta ai farmaci.
-      </p>
+        <div class="chart-grid">
+          <div class="chart-card">
+            <div class="chart-title">Intensità (max) giorno per giorno</div>
+            <canvas id="chartIntensity" width="900" height="280"></canvas>
+            <div class="muted chart-note">Barre: intensità massima del giorno.</div>
+          </div>
 
-      <div class="table-wrap">
-        <table class="table" id="monthlyTable">
-          <thead>
-            <tr>
-              <th>Giorno</th>
-              <th>Intensità (1–10)</th>
-              <th>Durata (ore)</th>
-              <th>Farmaci usati</th>
-              <th>Efficacia</th>
-              <th>Note</th>
-            </tr>
-          </thead>
-          <tbody id="monthlyRows"></tbody>
-        </table>
-      </div>
+          <div class="chart-card">
+            <div class="chart-title">Trigger più frequenti</div>
+            <canvas id="chartTriggers" width="900" height="260"></canvas>
+            <div class="muted chart-note">Conteggio dei trigger selezionati o dedotti (stress alto / poco sonno ecc.).</div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-title">Farmaci più usati</div>
+            <canvas id="chartMeds" width="900" height="260"></canvas>
+            <div class="muted chart-note">Conteggio farmaci nel mese.</div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <!-- ====== VIEW: REPORT ====== -->
+    <section id="view-report" class="view">
+      <section class="card">
+        <div class="row">
+          <h2>Report “presentabile” per Centro Cefalee</h2>
+          <div class="filters">
+            <div class="field">
+              <label>Mese report</label>
+              <input id="printMonth" type="month" />
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button id="btnPrintReport" class="btn" type="button">Genera PDF / Stampa</button>
+            </div>
+          </div>
+        </div>
+
+        <p class="muted">
+          Il report include intestazione, riepilogo, grafici e tabella giorno per giorno.
+          <br/>Compila ogni riga indicando la frequenza, intensità, durata e risposta ai farmaci.
+        </p>
+
+        <div class="table-wrap">
+          <table class="table" id="monthlyTable">
+            <thead>
+              <tr>
+                <th>Giorno</th>
+                <th>Intensità</th>
+                <th>Durata (ore)</th>
+                <th>Farmaci</th>
+                <th>Efficacia</th>
+                <th>Trigger / Note</th>
+              </tr>
+            </thead>
+            <tbody id="monthlyRows"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <!-- ====== VIEW: IMPOSTAZIONI ====== -->
+    <section id="view-impostazioni" class="view">
+      <section class="card">
+        <h2>Impostazioni</h2>
+
+        <div class="grid">
+          <div class="field">
+            <label>Tema</label>
+            <select id="themeSelect">
+              <option value="auto">Auto</option>
+              <option value="light">Chiaro</option>
+              <option value="dark">Scuro</option>
+            </select>
+            <small class="hint">“Auto” segue il tema del telefono.</small>
+          </div>
+
+          <div class="field">
+            <label>Nota</label>
+            <div class="muted">
+              Se dopo un aggiornamento vedi grafica “strana”, aumenta la versione cache in <code>sw.js</code> (v5, v6…).
+            </div>
+          </div>
+        </div>
+      </section>
     </section>
   </main>
 
+  <!-- Area stampa: viene compilata via JS -->
   <div id="printArea" class="print-area" aria-hidden="true"></div>
 
   <script src="app.js"></script>

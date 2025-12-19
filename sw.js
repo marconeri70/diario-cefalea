@@ -1,5 +1,4 @@
-// Diario Cefalea - sw.js (COMPLETO)
-const CACHE = "cefalea-pwa-v20"; // <-- cambia numero ad ogni update!
+const CACHE = "cefalea-pwa-v31"; // <-- cambia numero ad ogni update!
 
 const ASSETS = [
   "./",

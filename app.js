@@ -1,9 +1,8 @@
 /* =========================
    Diario Cefalea - app.js (COMPLETO)
-   - Grafici grandi e leggibili
-   - Report stampa: grafici ridimensionati + tabella sempre visibile
-   - Report: tocchi un giorno => popup; “＋ Aggiungi” => Diario con data pronta
-   - Registro: gestione filtri
+   FIX IMPORTANTI:
+   - due pulsanti stampa con ID diversi
+   - stampa robusta con window.open() (Android-friendly)
    ========================= */
 
 const KEY = "cefalea_attacks_v2";
@@ -43,8 +42,9 @@ const btnClear = el("btnClear");
 const btnBackup = el("btnBackup");
 const fileImport = el("fileImport");
 
-const btnPrintReport = el("btnPrintReport");
-const printArea = el("printArea");
+// DUE pulsanti stampa
+const btnPrintReportTop = el("btnPrintReportTop");
+const btnPrintReportBottom = el("btnPrintReportBottom");
 
 const patientNameInput = el("patientName");
 
@@ -515,17 +515,11 @@ function renderMonthlyTable(){
     const wk = isWeekend(iso) ? " (weekend)" : "";
 
     const dayAttacks = map.get(iso) || [];
-    const manageBtn = `<button class="iconbtn" data-day="${iso}" title="Apri giorno">📅</button>`;
 
     if (dayAttacks.length === 0){
       html += `
-        <tr data-dayrow="${iso}">
-          <td>
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-              <span>${String(day).padStart(2,"0")}/${m.slice(5,7)} (${dow})${wk}</span>
-              ${manageBtn}
-            </div>
-          </td>
+        <tr>
+          <td>${String(day).padStart(2,"0")}/${m.slice(5,7)} (${dow})${wk}</td>
           <td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>
         </tr>
       `;
@@ -534,13 +528,8 @@ function renderMonthlyTable(){
 
     const s = summarizeDayAttacks(dayAttacks);
     html += `
-      <tr data-dayrow="${iso}">
-        <td>
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-            <span>${String(day).padStart(2,"0")}/${m.slice(5,7)} (${dow})${wk}</span>
-            ${manageBtn}
-          </div>
-        </td>
+      <tr>
+        <td>${String(day).padStart(2,"0")}/${m.slice(5,7)} (${dow})${wk}</td>
         <td><strong>${s.maxInt}</strong>/10</td>
         <td>${s.sumDur} h</td>
         <td>${escapeHtml(s.meds || "—")}</td>
@@ -550,182 +539,6 @@ function renderMonthlyTable(){
     `;
   }
   monthlyRows.innerHTML = html;
-
-  document.querySelectorAll("[data-day]").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const dateISO = btn.getAttribute("data-day");
-      openDayModal(dateISO);
-    });
-  });
-
-  document.querySelectorAll("[data-dayrow]").forEach(tr => {
-    tr.addEventListener("click", () => {
-      const dateISO = tr.getAttribute("data-dayrow");
-      openDayModal(dateISO);
-    });
-  });
-}
-
-/* =========================
-   Day modal (JS created)
-   ========================= */
-function ensureModalCSS(){
-  if (el("__modalStyle")) return;
-  const st = document.createElement("style");
-  st.id = "__modalStyle";
-  st.textContent = `
-    @media print{ .no-print{ display:none !important; } }
-    .dc-modal-overlay{
-      position:fixed; inset:0; z-index:9999;
-      background: rgba(0,0,0,.55);
-      display:none;
-      align-items:center;
-      justify-content:center;
-      padding: 14px;
-    }
-    .dc-modal{
-      width: min(720px, 100%);
-      max-height: 78vh;
-      overflow:auto;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,.14);
-      background: var(--card, #111a2d);
-      color: var(--text, #e7eefc);
-      box-shadow: 0 20px 70px rgba(0,0,0,.35);
-      padding: 14px;
-    }
-    .dc-modal .hdr{
-      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
-      margin-bottom: 10px;
-    }
-    .dc-modal .ttl{ font-weight:900; font-size:16px; }
-    .dc-modal .sub{ font-size:12px; color: var(--muted, #a6b3d1); margin-top:3px; }
-    .dc-modal .btnRow{ display:flex; gap:8px; align-items:center; justify-content:flex-end; flex-wrap:wrap; }
-    .dc-modal .list{ display:flex; flex-direction:column; gap:10px; margin-top:10px; }
-    .dc-modal .item{
-      border:1px solid color-mix(in srgb, var(--line, #24314f) 40%, transparent);
-      border-radius: 16px;
-      padding: 12px;
-      background: color-mix(in srgb, var(--ghost, rgba(255,255,255,.06)) 70%, transparent);
-    }
-    .dc-modal .k{ font-weight:900; }
-    .dc-modal .mut{ color: var(--muted, #a6b3d1); font-size:12px; margin-top:4px; }
-    .dc-modal .acts{ display:flex; gap:8px; justify-content:flex-end; margin-top:10px; flex-wrap:wrap; }
-  `;
-  document.head.appendChild(st);
-}
-
-function ensureDayModal(){
-  ensureModalCSS();
-  if (el("dcDayOverlay")) return;
-
-  const overlay = document.createElement("div");
-  overlay.id = "dcDayOverlay";
-  overlay.className = "dc-modal-overlay no-print";
-  overlay.innerHTML = `
-    <div class="dc-modal" role="dialog" aria-modal="true">
-      <div class="hdr">
-        <div>
-          <div class="ttl" id="dcDayTitle">Giorno</div>
-          <div class="sub" id="dcDaySub">Gestisci gli attacchi registrati</div>
-        </div>
-        <div class="btnRow">
-          <button class="iconbtn" id="dcDayAdd" title="Aggiungi attacco in questo giorno">＋ Aggiungi</button>
-          <button class="iconbtn" id="dcDayClose" title="Chiudi">✖</button>
-        </div>
-      </div>
-      <div class="list" id="dcDayList"></div>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-
-  overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) closeDayModal();
-  });
-  el("dcDayClose")?.addEventListener("click", closeDayModal);
-
-  el("dcDayAdd")?.addEventListener("click", () => {
-    if (!DAY_MODAL_DATE) return;
-    closeDayModal();
-    startAddForDay(DAY_MODAL_DATE);
-  });
-}
-
-function startAddForDay(dateISO){
-  EDIT_ID = null;
-  setSubmitLabel();
-
-  resetFormFields();
-  setDateField(dateISO);
-
-  switchTo("diario");
-  form?.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-function openDayModal(dateISO){
-  ensureDayModal();
-  DAY_MODAL_DATE = dateISO;
-
-  const overlay = el("dcDayOverlay");
-  const listWrap = el("dcDayList");
-  const title = el("dcDayTitle");
-  const sub = el("dcDaySub");
-
-  const list = listByDate(dateISO);
-  const d = new Date(dateISO + "T00:00:00");
-  const nice = d.toLocaleDateString("it-IT", { weekday:"long", day:"2-digit", month:"long", year:"numeric" });
-  title.textContent = `Giorno: ${nice}`;
-  sub.textContent = list.length ? `Attacchi registrati: ${list.length}` : `Nessun attacco registrato (puoi aggiungerne uno)`;
-
-  if (!list.length){
-    listWrap.innerHTML = `<div class="mut">Nessun dato per questo giorno. Premi “＋ Aggiungi”.</div>`;
-  } else {
-    listWrap.innerHTML = list.map(a => {
-      const meds = (a.meds && a.meds.length) ? a.meds.join(", ") : "—";
-      const trig = (a.triggers && a.triggers.length) ? a.triggers.join(", ") : "—";
-      const note = a.notes?.trim() ? a.notes : "—";
-      return `
-        <div class="item">
-          <div class="k">${fmtDate(a.date, a.time)} • <strong>${a.intensity}</strong>/10 • ${a.duration} h</div>
-          <div class="mut"><strong>Farmaci:</strong> ${escapeHtml(meds)}</div>
-          <div class="mut"><strong>Efficacia:</strong> ${escapeHtml(a.efficacy)} • <strong>Trigger:</strong> ${escapeHtml(trig)}</div>
-          <div class="mut"><strong>Note:</strong> ${escapeHtml(note)}</div>
-          <div class="acts">
-            <button class="iconbtn" data-modal-edit="${a.id}">✏️ Modifica</button>
-            <button class="iconbtn" data-modal-del="${a.id}">🗑️ Elimina</button>
-          </div>
-        </div>
-      `;
-    }).join("");
-
-    document.querySelectorAll("[data-modal-edit]").forEach(b => {
-      b.addEventListener("click", () => {
-        const id = b.getAttribute("data-modal-edit");
-        closeDayModal();
-        startEdit(id);
-      });
-    });
-
-    document.querySelectorAll("[data-modal-del]").forEach(b => {
-      b.addEventListener("click", () => {
-        const id = b.getAttribute("data-modal-del");
-        if (confirm("Vuoi eliminare questo attacco?")){
-          if (EDIT_ID === id) cancelEdit();
-          removeAttack(id);
-          render();
-          drawChartsFor(statsMonth?.value || monthNow());
-          openDayModal(dateISO);
-        }
-      });
-    });
-  }
-
-  overlay.style.display = "flex";
-}
-function closeDayModal(){
-  const overlay = el("dcDayOverlay");
-  if (overlay) overlay.style.display = "none";
 }
 
 /* =========================
@@ -887,9 +700,7 @@ function drawBarChart(canvas, labels, values, options){
   for (let i=0;i<n;i++){
     const x = padL + i*(barW+gap) + barW/2;
     const y = H - padB + 18;
-    if (n > 20){
-      if ((i+1) % 2 === 0) continue; // etichetta ogni 2 giorni per leggibilità
-    }
+    if (n > 20 && (i+1) % 2 === 0) continue;
     ctx.fillText(labels[i], x, y);
   }
 }
@@ -951,41 +762,62 @@ function drawChartsFor(yyyyMM){
 }
 
 /* =========================
-   PRINT / PDF
-   - converte canvas in IMG
-   - limita altezza grafici
-   - pagina 2: tabella report
+   PRINT / PDF - ROBUSTO
    ========================= */
-function printReport(){
-  try{
-    if (!printArea) throw new Error("Manca #printArea in index.html");
-    const m = (printMonth?.value || monthNow()).trim();
-    const label = monthLabel(m);
-    const nome = getPatientName() || "__________________________";
+function buildPrintHTML(yyyyMM){
+  // aggiorna tabella e grafici
+  renderMonthlyTable();
+  drawChartsFor(yyyyMM);
 
-    renderMonthlyTable();
-    drawChartsFor(m);
+  // immagini dai canvas
+  const imgInt = chartIntensity ? chartIntensity.toDataURL("image/png", 1.0) : "";
+  const imgTrig = chartTriggers ? chartTriggers.toDataURL("image/png", 1.0) : "";
+  const imgMeds = chartMeds ? chartMeds.toDataURL("image/png", 1.0) : "";
 
-    // dataURL dai canvas
-    const imgInt = chartIntensity ? chartIntensity.toDataURL("image/png", 1.0) : "";
-    const imgTrig = chartTriggers ? chartTriggers.toDataURL("image/png", 1.0) : "";
-    const imgMeds = chartMeds ? chartMeds.toDataURL("image/png", 1.0) : "";
+  const monthList = listForMonth(yyyyMM);
+  const hasAttacks = monthList.some(a => Number(a.intensity || 0) > 0);
+  const hasMeds = monthList.some(a => (a.meds && a.meds.length));
+  const hasTriggers = monthList.some(a =>
+    (a.triggers && a.triggers.length) ||
+    (a.weather && a.weather.trim()) ||
+    (a.foods && a.foods.trim()) ||
+    Number(a.stress || 0) >= 7 ||
+    (typeof a.sleepHours === "number" && a.sleepHours > 0 && a.sleepHours < 6)
+  );
 
-    const monthList = listForMonth(m);
-    const hasAttacks = monthList.some(a => Number(a.intensity || 0) > 0);
-    const hasMeds = monthList.some(a => (a.meds && a.meds.length));
-    const hasTriggers = monthList.some(a =>
-      (a.triggers && a.triggers.length) ||
-      (a.weather && a.weather.trim()) ||
-      (a.foods && a.foods.trim()) ||
-      Number(a.stress || 0) >= 7 ||
-      (typeof a.sleepHours === "number" && a.sleepHours > 0 && a.sleepHours < 6)
-    );
+  const label = monthLabel(yyyyMM);
+  const nome = getPatientName() || "__________________________";
+  const tableHTML = el("monthlyTable") ? el("monthlyTable").outerHTML : "<p>Tabella non disponibile</p>";
 
-    const tableHTML = el("monthlyTable") ? el("monthlyTable").outerHTML : "<p>Tabella non disponibile</p>";
+  // CSS SOLO PER LA STAMPA (così funziona anche in window.open)
+  const printCSS = `
+    @page { size: A4; margin: 12mm; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:#111; }
+    .ptv-head{ display:flex; justify-content:space-between; gap:12px; margin-bottom: 8px; }
+    .ptv-title{ font-weight: 900; letter-spacing:.08em; font-size: 12px; }
+    .ptv-sub{ font-weight: 800; letter-spacing:.04em; font-size: 11px; color:#333; margin-top: 2px; }
+    h1{ margin:10px 0 8px 0; font-size:16px; }
+    h3{ margin:10px 0 6px 0; font-size:13px; }
+    .ptv-meta{ display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; font-size:11px; margin: 6px 0 8px 0; }
+    .ptv-instr{ margin: 0 0 8px 0; font-size:11px; color:#333; }
+    .chart{ border:1px solid #ddd; border-radius:10px; padding: 6mm; margin: 6mm 0; break-inside: avoid; }
+    .chart img{ width:100%; height:auto; max-height:85mm; object-fit:contain; display:block; }
+    .page-break{ break-before: page; page-break-before: always; }
+    table{ width:100%; border-collapse:collapse; font-size:10px; }
+    th, td{ border:1px solid #bbb; padding:6px; vertical-align:top; white-space:normal; }
+    th{ background:#f2f2f2; text-transform:uppercase; letter-spacing:.04em; }
+  `;
 
-    printArea.innerHTML = `
-      <div class="print-sheet">
+  const html = `
+    <!doctype html>
+    <html lang="it">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Report Cefalea</title>
+        <style>${printCSS}</style>
+      </head>
+      <body>
         <div class="ptv-head">
           <div>
             <div class="ptv-title">FONDAZIONE PTV</div>
@@ -1004,7 +836,7 @@ function printReport(){
 
         <p class="ptv-instr">Compila ogni riga indicando la frequenza, intensità, durata e risposta ai farmaci.</p>
 
-        <div class="print-chart">
+        <div class="chart">
           <h3>Intensità (max) giorno per giorno</h3>
           ${
             hasAttacks && imgInt
@@ -1013,7 +845,7 @@ function printReport(){
           }
         </div>
 
-        <div class="print-chart">
+        <div class="chart">
           <h3>Trigger più frequenti</h3>
           ${
             hasTriggers && imgTrig
@@ -1022,7 +854,7 @@ function printReport(){
           }
         </div>
 
-        <div class="print-chart">
+        <div class="chart">
           <h3>Farmaci più usati</h3>
           ${
             hasMeds && imgMeds
@@ -1035,10 +867,31 @@ function printReport(){
 
         <h3>Tabella giornaliera</h3>
         ${tableHTML}
-      </div>
-    `;
+      </body>
+    </html>
+  `;
 
-    setTimeout(() => window.print(), 120);
+  return html;
+}
+
+function printReport(){
+  try{
+    const m = (printMonth?.value || monthNow()).trim();
+    const html = buildPrintHTML(m);
+
+    const w = window.open("", "_blank");
+    if (!w){
+      alert("Impossibile aprire la stampa: popup bloccato. Prova da Chrome (non dentro app).");
+      return;
+    }
+
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+
+    // Stampa immediata (più affidabile su Android)
+    w.focus();
+    w.print();
   }catch(err){
     alert("Errore stampa/PDF: " + (err?.message || err));
     console.error(err);
@@ -1142,7 +995,13 @@ fileImport?.addEventListener("change", (e) => {
   fileImport.value = "";
 });
 
-btnPrintReport?.addEventListener("click", printReport);
+// AGGANCIO STAMPA SU ENTRAMBI I PULSANTI
+btnPrintReportTop?.addEventListener("click", () => {
+  // sincronizza mese stampa con mese filtro, se utile
+  if (printMonth && month?.value) printMonth.value = month.value;
+  printReport();
+});
+btnPrintReportBottom?.addEventListener("click", () => printReport());
 
 patientNameInput?.addEventListener("input", () => setPatientName(patientNameInput.value));
 
@@ -1191,7 +1050,6 @@ btnInstall?.addEventListener("click", async () => {
   if (stressVal && stress) stressVal.textContent = stress.value;
 
   setSubmitLabel();
-  ensureDayModal();
 
   render();
   drawChartsFor(statsMonth?.value || monthNow());

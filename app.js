@@ -1,8 +1,8 @@
 /* =========================
-   Diario Cefalea - app.js (COMPLETO)
-   FIX IMPORTANTI:
-   - due pulsanti stampa con ID diversi
-   - stampa robusta con window.open() (Android-friendly)
+   Diario Cefalea - app.js (COMPLETO, aggiornato)
+   FIX: grafici che NON uscivano in stampa/PDF
+   - Stampa robusta: aspetta che le immagini (dataURL dei canvas) siano caricate prima di print()
+   - CSS stampa: regole per immagini e anti-spezzatura
    ========================= */
 
 const KEY = "cefalea_attacks_v2";
@@ -42,7 +42,6 @@ const btnClear = el("btnClear");
 const btnBackup = el("btnBackup");
 const fileImport = el("fileImport");
 
-// DUE pulsanti stampa
 const btnPrintReportTop = el("btnPrintReportTop");
 const btnPrintReportBottom = el("btnPrintReportBottom");
 
@@ -62,9 +61,6 @@ const btnInstall = el("btnInstall");
 
 /* Edit state */
 let EDIT_ID = null;
-
-/* Day modal state */
-let DAY_MODAL_DATE = null;
 
 /* =========================
    Storage helpers
@@ -228,9 +224,6 @@ function removeAttack(id){
 function getAttackById(id){
   return load().find(x => x.id === id) || null;
 }
-function listByDate(dateISO){
-  return load().filter(x => x.date === dateISO).sort((a,b)=> (a.time||"").localeCompare(b.time||""));
-}
 
 /* =========================
    Month helpers
@@ -311,6 +304,7 @@ function switchTo(viewKey){
 
   if (viewKey === "statistiche") drawChartsFor(statsMonth?.value || monthNow());
   if (viewKey === "report") renderMonthlyTable();
+
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -633,8 +627,10 @@ function ensureCanvasSize(canvas){
   if (!canvas) return { cssW: 0, cssH: 0, dpr: 1 };
   const dpr = Math.max(1, window.devicePixelRatio || 1);
 
-  const cssW = Math.max(320, Math.floor(canvas.clientWidth || 0));
-  const cssH = Math.max(220, Math.floor(canvas.clientHeight || 0) || 240);
+  // IMPORTANT: quando la tab "Statistiche" non è visibile, clientWidth può essere 0
+  // quindi forziamo una dimensione minima stabile per la generazione dei dataURL.
+  const cssW = Math.max(720, Math.floor(canvas.clientWidth || 0) || 0);  // più largo => più leggibile in stampa
+  const cssH = Math.max(320, Math.floor(canvas.clientHeight || 0) || 0);
 
   const needW = Math.floor(cssW * dpr);
   const needH = Math.floor(cssH * dpr);
@@ -655,7 +651,7 @@ function drawBarChart(canvas, labels, values, options){
   ctx.fillStyle = options.bgColor;
   ctx.fillRect(0,0,W,H);
 
-  const padL = 44, padR = 12, padT = 14, padB = 52;
+  const padL = 52, padR = 14, padT = 16, padB = 72;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
 
@@ -671,16 +667,17 @@ function drawBarChart(canvas, labels, values, options){
     ctx.moveTo(padL, y);
     ctx.lineTo(W-padR, y);
     ctx.stroke();
+
     const val = Math.round(maxV * (1 - i/steps));
     ctx.font = "12px system-ui";
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
-    ctx.fillText(String(val), padL - 8, y);
+    ctx.fillText(String(val), padL - 10, y);
   }
 
   const n = labels.length;
-  const gap = 2;
-  const barW = n ? Math.max(2, (plotW / n) - gap) : plotW;
+  const gap = 3;
+  const barW = n ? Math.max(3, (plotW / n) - gap) : plotW;
 
   for (let i=0;i<n;i++){
     const v = values[i];
@@ -692,15 +689,17 @@ function drawBarChart(canvas, labels, values, options){
   }
 
   ctx.fillStyle = options.textColor;
-  const smallFont = n > 20 ? 9 : 11;
+
+  // Etichette sotto le colonne (giorni)
+  const smallFont = n > 25 ? 9 : 11;
   ctx.font = `${smallFont}px system-ui`;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
 
   for (let i=0;i<n;i++){
     const x = padL + i*(barW+gap) + barW/2;
-    const y = H - padB + 18;
-    if (n > 20 && (i+1) % 2 === 0) continue;
+    const y = H - padB + 24;
+    if (n > 25 && (i+1) % 2 === 0) continue; // sfoltisce su mesi lunghi
     ctx.fillText(labels[i], x, y);
   }
 }
@@ -743,7 +742,8 @@ function drawChartsFor(yyyyMM){
     t.forEach(x => allTrig.push(x));
   }
   const trigCounts = topCounts(allTrig).slice(0, 10);
-  drawBarChart(chartTriggers,
+  drawBarChart(
+    chartTriggers,
     trigCounts.map(x=>x[0]),
     trigCounts.map(x=>x[1]),
     { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar }
@@ -754,7 +754,8 @@ function drawChartsFor(yyyyMM){
     (a.meds||[]).forEach(x => allMeds.push(x));
   }
   const medsCounts = topCounts(allMeds).slice(0, 10);
-  drawBarChart(chartMeds,
+  drawBarChart(
+    chartMeds,
     medsCounts.map(x=>x[0].replace(" (FANS)","")),
     medsCounts.map(x=>x[1]),
     { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar }
@@ -762,37 +763,33 @@ function drawChartsFor(yyyyMM){
 }
 
 /* =========================
-   PRINT / PDF - ROBUSTO
+   PRINT / PDF - FIX DEFINITIVO GRAFICI
    ========================= */
 function buildPrintHTML(yyyyMM){
-  // aggiorna tabella e grafici
   renderMonthlyTable();
+
+  // IMPORTANT: generiamo i grafici PRIMA di convertirli in immagini
   drawChartsFor(yyyyMM);
 
-  // immagini dai canvas
-  const imgInt = chartIntensity ? chartIntensity.toDataURL("image/png", 1.0) : "";
-  const imgTrig = chartTriggers ? chartTriggers.toDataURL("image/png", 1.0) : "";
-  const imgMeds = chartMeds ? chartMeds.toDataURL("image/png", 1.0) : "";
+  // dataURL dai canvas
+  const imgInt = chartIntensity ? chartIntensity.toDataURL("image/png") : "";
+  const imgTrig = chartTriggers ? chartTriggers.toDataURL("image/png") : "";
+  const imgMeds = chartMeds ? chartMeds.toDataURL("image/png") : "";
 
   const monthList = listForMonth(yyyyMM);
-  const hasAttacks = monthList.some(a => Number(a.intensity || 0) > 0);
-  const hasMeds = monthList.some(a => (a.meds && a.meds.length));
-  const hasTriggers = monthList.some(a =>
-    (a.triggers && a.triggers.length) ||
-    (a.weather && a.weather.trim()) ||
-    (a.foods && a.foods.trim()) ||
-    Number(a.stress || 0) >= 7 ||
-    (typeof a.sleepHours === "number" && a.sleepHours > 0 && a.sleepHours < 6)
-  );
+  const hasAnyData = monthList.length > 0;
 
   const label = monthLabel(yyyyMM);
   const nome = getPatientName() || "__________________________";
   const tableHTML = el("monthlyTable") ? el("monthlyTable").outerHTML : "<p>Tabella non disponibile</p>";
 
-  // CSS SOLO PER LA STAMPA (così funziona anche in window.open)
   const printCSS = `
     @page { size: A4; margin: 12mm; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:#111; }
+
+    /* IMPORTANT per immagini in stampa */
+    img{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
     .ptv-head{ display:flex; justify-content:space-between; gap:12px; margin-bottom: 8px; }
     .ptv-title{ font-weight: 900; letter-spacing:.08em; font-size: 12px; }
     .ptv-sub{ font-weight: 800; letter-spacing:.04em; font-size: 11px; color:#333; margin-top: 2px; }
@@ -800,15 +797,19 @@ function buildPrintHTML(yyyyMM){
     h3{ margin:10px 0 6px 0; font-size:13px; }
     .ptv-meta{ display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; font-size:11px; margin: 6px 0 8px 0; }
     .ptv-instr{ margin: 0 0 8px 0; font-size:11px; color:#333; }
-    .chart{ border:1px solid #ddd; border-radius:10px; padding: 6mm; margin: 6mm 0; break-inside: avoid; }
-    .chart img{ width:100%; height:auto; max-height:85mm; object-fit:contain; display:block; }
+
+    /* Evita che i grafici vengano spezzati tra pagine */
+    .chart{ border:1px solid #ddd; border-radius:10px; padding: 6mm; margin: 6mm 0; break-inside: avoid; page-break-inside: avoid; }
+    .chart img{ display:block; width:100%; height:auto; max-height:85mm; object-fit:contain; }
+
     .page-break{ break-before: page; page-break-before: always; }
+
     table{ width:100%; border-collapse:collapse; font-size:10px; }
     th, td{ border:1px solid #bbb; padding:6px; vertical-align:top; white-space:normal; }
     th{ background:#f2f2f2; text-transform:uppercase; letter-spacing:.04em; }
   `;
 
-  const html = `
+  return `
     <!doctype html>
     <html lang="it">
       <head>
@@ -838,29 +839,20 @@ function buildPrintHTML(yyyyMM){
 
         <div class="chart">
           <h3>Intensità (max) giorno per giorno</h3>
-          ${
-            hasAttacks && imgInt
-              ? `<img src="${imgInt}" alt="Grafico Intensità">`
-              : `<p class="ptv-instr"><strong>Nessun attacco registrato nel mese.</strong></p>`
-          }
+          ${hasAnyData && imgInt ? `<img src="${imgInt}" alt="Grafico Intensità">`
+          : `<p class="ptv-instr">Nessun dato registrato nel mese.</p>`}
         </div>
 
         <div class="chart">
           <h3>Trigger più frequenti</h3>
-          ${
-            hasTriggers && imgTrig
-              ? `<img src="${imgTrig}" alt="Grafico Trigger">`
-              : `<p class="ptv-instr">Nessun trigger registrato/dedotto nel mese.</p>`
-          }
+          ${hasAnyData && imgTrig ? `<img src="${imgTrig}" alt="Grafico Trigger">`
+          : `<p class="ptv-instr">Nessun dato registrato nel mese.</p>`}
         </div>
 
         <div class="chart">
           <h3>Farmaci più usati</h3>
-          ${
-            hasMeds && imgMeds
-              ? `<img src="${imgMeds}" alt="Grafico Farmaci">`
-              : `<p class="ptv-instr">Nessun farmaco registrato nel mese.</p>`
-          }
+          ${hasAnyData && imgMeds ? `<img src="${imgMeds}" alt="Grafico Farmaci">`
+          : `<p class="ptv-instr">Nessun dato registrato nel mese.</p>`}
         </div>
 
         <div class="page-break"></div>
@@ -870,11 +862,10 @@ function buildPrintHTML(yyyyMM){
       </body>
     </html>
   `;
-
-  return html;
 }
 
-function printReport(){
+/* FIX: aspetta che le immagini (grafici) siano cariche prima di stampare */
+async function printReport(){
   try{
     const m = (printMonth?.value || monthNow()).trim();
     const html = buildPrintHTML(m);
@@ -889,9 +880,33 @@ function printReport(){
     w.document.write(html);
     w.document.close();
 
-    // Stampa immediata (più affidabile su Android)
-    w.focus();
-    w.print();
+    const waitImages = () => {
+      const imgs = Array.from(w.document.images || []);
+      if (!imgs.length) return Promise.resolve();
+      return Promise.all(imgs.map(img => {
+        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+        return new Promise(res => {
+          img.onload = () => res();
+          img.onerror = () => res();
+        });
+      }));
+    };
+
+    w.onload = async () => {
+      try{
+        await waitImages();
+        setTimeout(() => {
+          w.focus();
+          w.print();
+        }, 250);
+      }catch{
+        setTimeout(() => {
+          w.focus();
+          w.print();
+        }, 300);
+      }
+    };
+
   }catch(err){
     alert("Errore stampa/PDF: " + (err?.message || err));
     console.error(err);
@@ -995,9 +1010,7 @@ fileImport?.addEventListener("change", (e) => {
   fileImport.value = "";
 });
 
-// AGGANCIO STAMPA SU ENTRAMBI I PULSANTI
 btnPrintReportTop?.addEventListener("click", () => {
-  // sincronizza mese stampa con mese filtro, se utile
   if (printMonth && month?.value) printMonth.value = month.value;
   printReport();
 });

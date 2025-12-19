@@ -1,12 +1,11 @@
 /* =========================
-   Diario Cefalea - app.js (COMPLETO)
-   - Registro attacchi
-   - Trigger (stress/sonno/meteo/alimenti + checkbox)
+   Diario Cefalea - app.js (COMPLETO + EDIT GIORNO)
+   - Registro attacchi + modifica/elimina
+   - Report mensile: clic sul giorno -> modal con attacchi del giorno (modifica/elimina)
+   - Tema Auto/Chiaro/Scuro
    - Grafici mensili (canvas)
    - Export CSV + Backup/Import JSON
-   - Tema Auto/Chiaro/Scuro
-   - Report PDF/Stampa "presentabile" (PTV + Dr.ssa Albanese)
-   - Impaginazione stampa migliorata (tabella in nuova pagina)
+   - Stampa/PDF presentabile
    ========================= */
 
 const KEY = "cefalea_attacks_v2";
@@ -65,6 +64,9 @@ const btnInstall = el("btnInstall");
 const chartIntensity = el("chartIntensity");
 const chartTriggers = el("chartTriggers");
 const chartMeds = el("chartMeds");
+
+/* ===== Edit state ===== */
+let EDIT_ID = null;
 
 /* ===== Helpers ===== */
 function load(){
@@ -130,9 +132,20 @@ function getSelectedMeds(){
   if (!s) return [];
   return Array.from(s.selectedOptions).map(o => o.value);
 }
+function setSelectedMeds(list){
+  const s = el("meds");
+  if (!s) return;
+  const set = new Set(list || []);
+  Array.from(s.options).forEach(o => o.selected = set.has(o.value));
+}
 function getSelectedTriggers(){
   const chips = document.querySelectorAll("#triggerChips input[type=checkbox]");
   return Array.from(chips).filter(x => x.checked).map(x => x.value);
+}
+function setSelectedTriggers(list){
+  const set = new Set(list || []);
+  const chips = document.querySelectorAll("#triggerChips input[type=checkbox]");
+  chips.forEach(x => x.checked = set.has(x.value));
 }
 function clearTriggers(){
   const chips = document.querySelectorAll("#triggerChips input[type=checkbox]");
@@ -203,7 +216,8 @@ function filteredList(){
       const trig = (a.triggers || []).join(" ").toLowerCase();
       const foods = (a.foods || "").toLowerCase();
       const weather = (a.weather || "").toLowerCase();
-      return meds.includes(query) || notes.includes(query) || trig.includes(query) || foods.includes(query) || weather.includes(query);
+      const date = (a.date || "").toLowerCase();
+      return meds.includes(query) || notes.includes(query) || trig.includes(query) || foods.includes(query) || weather.includes(query) || date.includes(query);
     });
   }
 
@@ -218,12 +232,39 @@ function addAttack(a){
   list.sort((x,y) => (y.date+(y.time||"")).localeCompare(x.date+(x.time||"")));
   save(list);
 }
+function updateAttack(id, patch){
+  const list = load();
+  const idx = list.findIndex(x => x.id === id);
+  if (idx === -1) return false;
+  list[idx] = { ...list[idx], ...patch };
+  list.sort((x,y) => (y.date+(y.time||"")).localeCompare(x.date+(x.time||"")));
+  save(list);
+  return true;
+}
 function removeAttack(id){
   const list = load().filter(x => x.id !== id);
   save(list);
 }
+function getAttackById(id){
+  return load().find(x => x.id === id) || null;
+}
+function listByDate(dateISO){
+  return load().filter(x => x.date === dateISO).sort((a,b)=> (a.time||"").localeCompare(b.time||""));
+}
 
-/* ===== Render: Registro ===== */
+/* ===== UI: switch view ===== */
+function switchTo(viewKey){
+  tabs.forEach(x => x.classList.remove("active"));
+  const tab = tabs.find(t => t.getAttribute("data-view") === viewKey);
+  tab?.classList.add("active");
+  Object.values(views).forEach(s => s?.classList.remove("active"));
+  views[viewKey]?.classList.add("active");
+  if (viewKey === "statistiche") drawChartsFor(statsMonth?.value || monthNow());
+  if (viewKey === "report") renderMonthlyTable();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/* ===== Render: Stats pills ===== */
 function compactExtras(a){
   const parts = [];
   if (typeof a.stress === "number" && a.stress > 0) parts.push(`Stress ${a.stress}/10`);
@@ -260,6 +301,44 @@ function renderStats(list){
   `;
 }
 
+/* ===== EDIT: prefill form ===== */
+function setSubmitLabel(){
+  const btn = form?.querySelector("button[type=submit]");
+  if (!btn) return;
+  btn.textContent = EDIT_ID ? "Salva modifica" : "Salva attacco";
+}
+function startEdit(id){
+  const a = getAttackById(id);
+  if (!a) return;
+
+  EDIT_ID = id;
+
+  if (el("date")) el("date").value = a.date || isoToday();
+  if (el("time")) el("time").value = a.time || "";
+  if (el("intensity")) el("intensity").value = a.intensity ?? "";
+  if (el("duration")) el("duration").value = a.duration ?? "";
+  if (el("efficacy")) el("efficacy").value = a.efficacy || "Parziale";
+  if (el("notes")) el("notes").value = a.notes || "";
+  if (el("sleepHours")) el("sleepHours").value = (a.sleepHours ?? "") === null ? "" : (a.sleepHours ?? "");
+  if (el("weather")) el("weather").value = a.weather || "";
+  if (el("foods")) el("foods").value = a.foods || "";
+  if (stress){ stress.value = String(a.stress ?? 0); }
+  if (stressVal){ stressVal.textContent = String(a.stress ?? 0); }
+
+  setSelectedMeds(a.meds || []);
+  setSelectedTriggers(a.triggers || []);
+
+  setSubmitLabel();
+  switchTo("diario");
+  form?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function cancelEdit(){
+  EDIT_ID = null;
+  setSubmitLabel();
+  resetFormFields();
+}
+
+/* ===== Render: Diario list ===== */
 function render(){
   const list = filteredList();
 
@@ -278,7 +357,8 @@ function render(){
           <td>${escapeHtml(a.efficacy)}</td>
           <td>${escapeHtml(trig)}</td>
           <td>${escapeHtml(note)}</td>
-          <td style="text-align:right">
+          <td style="text-align:right; white-space:nowrap">
+            <button class="iconbtn" data-edit="${a.id}" title="Modifica">✏️</button>
             <button class="iconbtn" data-del="${a.id}" title="Elimina">🗑️</button>
           </td>
         </tr>
@@ -307,7 +387,8 @@ function render(){
           <div class="small"><strong>Efficacia:</strong> ${escapeHtml(a.efficacy)}</div>
           <div class="small"><strong>Trigger:</strong> ${escapeHtml(trig)}</div>
           <div class="small"><strong>Note:</strong> ${escapeHtml(note)}</div>
-          <div style="display:flex; justify-content:flex-end; margin-top:10px">
+          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px">
+            <button class="iconbtn" data-edit="${a.id}">Modifica</button>
             <button class="iconbtn" data-del="${a.id}">Elimina</button>
           </div>
         </div>
@@ -318,10 +399,18 @@ function render(){
   document.querySelectorAll("[data-del]").forEach(b => {
     b.addEventListener("click", () => {
       const id = b.getAttribute("data-del");
+      if (EDIT_ID === id) cancelEdit();
       removeAttack(id);
       render();
       renderMonthlyTable();
       drawChartsFor(statsMonth?.value || monthNow());
+    });
+  });
+
+  document.querySelectorAll("[data-edit]").forEach(b => {
+    b.addEventListener("click", () => {
+      const id = b.getAttribute("data-edit");
+      startEdit(id);
     });
   });
 
@@ -379,10 +468,16 @@ function renderMonthlyTable(){
     const wk = isWeekend(iso) ? " (weekend)" : "";
 
     const dayAttacks = map.get(iso) || [];
+    const editBtn = dayAttacks.length
+      ? `<button class="iconbtn no-print" data-day="${iso}" title="Modifica giorno">✏️</button>`
+      : "";
+
     if (dayAttacks.length === 0){
       html += `
-        <tr>
-          <td>${String(day).padStart(2,"0")}/${m.slice(5,7)} (${dow})${wk}</td>
+        <tr data-dayrow="${iso}">
+          <td>
+            ${String(day).padStart(2,"0")}/${m.slice(5,7)} (${dow})${wk}
+          </td>
           <td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>
         </tr>
       `;
@@ -392,8 +487,13 @@ function renderMonthlyTable(){
     const s = summarizeDayAttacks(dayAttacks);
 
     html += `
-      <tr>
-        <td>${String(day).padStart(2,"0")}/${m.slice(5,7)} (${dow})${wk}</td>
+      <tr data-dayrow="${iso}">
+        <td>
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+            <span>${String(day).padStart(2,"0")}/${m.slice(5,7)} (${dow})${wk}</span>
+            ${editBtn}
+          </div>
+        </td>
         <td><strong>${s.maxInt}</strong>/10</td>
         <td>${s.sumDur} h</td>
         <td>${escapeHtml(s.meds || "—")}</td>
@@ -403,6 +503,167 @@ function renderMonthlyTable(){
     `;
   }
   monthlyRows.innerHTML = html;
+
+  // click sul tasto ✏️ -> modal elenco attacchi del giorno
+  document.querySelectorAll("[data-day]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const dateISO = btn.getAttribute("data-day");
+      openDayModal(dateISO);
+    });
+  });
+
+  // click su tutta la riga -> apri modal se ci sono attacchi
+  document.querySelectorAll("[data-dayrow]").forEach(tr => {
+    tr.addEventListener("click", () => {
+      const dateISO = tr.getAttribute("data-dayrow");
+      const list = listByDate(dateISO);
+      if (list.length) openDayModal(dateISO);
+    });
+  });
+}
+
+/* ===== Day modal (creato via JS, zero modifiche HTML) ===== */
+function ensureModalCSS(){
+  if (el("__modalStyle")) return;
+  const st = document.createElement("style");
+  st.id = "__modalStyle";
+  st.textContent = `
+    .no-print{}
+    @media print{ .no-print{ display:none !important; } }
+    .dc-modal-overlay{
+      position:fixed; inset:0; z-index:9999;
+      background: rgba(0,0,0,.55);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 14px;
+    }
+    .dc-modal{
+      width: min(720px, 100%);
+      max-height: 78vh;
+      overflow:auto;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: var(--card, #111a2d);
+      color: var(--text, #e7eefc);
+      box-shadow: 0 20px 70px rgba(0,0,0,.35);
+      padding: 14px;
+    }
+    .dc-modal .hdr{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+      margin-bottom: 10px;
+    }
+    .dc-modal .ttl{ font-weight:900; font-size:16px; }
+    .dc-modal .sub{ font-size:12px; color: var(--muted, #a6b3d1); margin-top:3px; }
+    .dc-modal .list{ display:flex; flex-direction:column; gap:10px; margin-top:10px; }
+    .dc-modal .item{
+      border:1px solid color-mix(in srgb, var(--line, #24314f) 40%, transparent);
+      border-radius: 16px;
+      padding: 12px;
+      background: color-mix(in srgb, var(--chip2, #0d1427) 90%, transparent);
+    }
+    .dc-modal .itemTop{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+    .dc-modal .k{ font-weight:900; }
+    .dc-modal .mut{ color: var(--muted, #a6b3d1); font-size:12px; margin-top:4px; }
+    .dc-modal .acts{ display:flex; gap:8px; justify-content:flex-end; margin-top:10px; flex-wrap:wrap; }
+  `;
+  document.head.appendChild(st);
+}
+
+function ensureDayModal(){
+  ensureModalCSS();
+  if (el("dcDayOverlay")) return;
+
+  const overlay = document.createElement("div");
+  overlay.id = "dcDayOverlay";
+  overlay.className = "dc-modal-overlay";
+  overlay.innerHTML = `
+    <div class="dc-modal" role="dialog" aria-modal="true">
+      <div class="hdr">
+        <div>
+          <div class="ttl" id="dcDayTitle">Giorno</div>
+          <div class="sub" id="dcDaySub">Tocca un attacco per modificarlo</div>
+        </div>
+        <button class="iconbtn" id="dcDayClose" title="Chiudi">✖</button>
+      </div>
+      <div class="list" id="dcDayList"></div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closeDayModal();
+  });
+  el("dcDayClose")?.addEventListener("click", closeDayModal);
+}
+
+function openDayModal(dateISO){
+  ensureDayModal();
+  const overlay = el("dcDayOverlay");
+  const listWrap = el("dcDayList");
+  const title = el("dcDayTitle");
+  const sub = el("dcDaySub");
+
+  const list = listByDate(dateISO);
+
+  const d = new Date(dateISO + "T00:00:00");
+  const nice = d.toLocaleDateString("it-IT", { weekday:"long", day:"2-digit", month:"long", year:"numeric" });
+  title.textContent = `Modifica giorno: ${nice}`;
+  sub.textContent = list.length ? `Attacchi registrati: ${list.length}` : `Nessun attacco registrato`;
+
+  if (!list.length){
+    listWrap.innerHTML = `<div class="mut">Nessun dato per questo giorno.</div>`;
+  } else {
+    listWrap.innerHTML = list.map(a => {
+      const meds = (a.meds && a.meds.length) ? a.meds.join(", ") : "—";
+      const trig = (a.triggers && a.triggers.length) ? a.triggers.join(", ") : "—";
+      const note = a.notes?.trim() ? a.notes : "—";
+      return `
+        <div class="item">
+          <div class="itemTop">
+            <div>
+              <div class="k">${fmtDate(a.date, a.time)} • <strong>${a.intensity}</strong>/10 • ${a.duration} h</div>
+              <div class="mut"><strong>Farmaci:</strong> ${escapeHtml(meds)}</div>
+              <div class="mut"><strong>Efficacia:</strong> ${escapeHtml(a.efficacy)} • <strong>Trigger:</strong> ${escapeHtml(trig)}</div>
+              <div class="mut"><strong>Note:</strong> ${escapeHtml(note)}</div>
+            </div>
+          </div>
+          <div class="acts">
+            <button class="iconbtn" data-modal-edit="${a.id}">✏️ Modifica</button>
+            <button class="iconbtn" data-modal-del="${a.id}">🗑️ Elimina</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    document.querySelectorAll("[data-modal-edit]").forEach(b => {
+      b.addEventListener("click", () => {
+        const id = b.getAttribute("data-modal-edit");
+        closeDayModal();
+        startEdit(id);
+      });
+    });
+
+    document.querySelectorAll("[data-modal-del]").forEach(b => {
+      b.addEventListener("click", () => {
+        const id = b.getAttribute("data-modal-del");
+        if (confirm("Vuoi eliminare questo attacco?")){
+          if (EDIT_ID === id) cancelEdit();
+          removeAttack(id);
+          render();
+          drawChartsFor(statsMonth?.value || monthNow());
+          openDayModal(dateISO); // refresh
+        }
+      });
+    });
+  }
+
+  overlay.style.display = "flex";
+}
+function closeDayModal(){
+  const overlay = el("dcDayOverlay");
+  if (overlay) overlay.style.display = "none";
 }
 
 /* ===== CSV ===== */
@@ -484,6 +745,7 @@ function importJSON(file){
 
 /* ===== Charts (canvas) ===== */
 function clearCanvas(c){
+  if (!c) return null;
   const ctx = c.getContext("2d");
   ctx.clearRect(0,0,c.width,c.height);
   return ctx;
@@ -495,8 +757,9 @@ function cssColor(varName, fallback){
 function drawBarChart(canvas, labels, values, options){
   if (!canvas) return;
   const ctx = clearCanvas(canvas);
-  const W = canvas.width, H = canvas.height;
+  if (!ctx) return;
 
+  const W = canvas.width, H = canvas.height;
   const padL = 44, padR = 12, padT = 14, padB = 34;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
@@ -724,7 +987,6 @@ function printReport(){
           <div id="printChartMeds"></div>
         </div>
 
-        <!-- Pagina 2: tabella -->
         <div class="page-break print-chart">
           <h3>Tabella giornaliera</h3>
           ${el("monthlyTable") ? el("monthlyTable").outerHTML : `
@@ -819,8 +1081,7 @@ if (form){
       })
     ]);
 
-    const a = {
-      id: cryptoId(),
+    const payload = {
       date,
       time,
       intensity,
@@ -835,21 +1096,32 @@ if (form){
       notes
     };
 
-    addAttack(a);
+    // ✅ se stai modificando, aggiorna invece di aggiungere
+    if (EDIT_ID){
+      updateAttack(EDIT_ID, payload);
+      cancelEdit();
+    } else {
+      addAttack({ id: cryptoId(), ...payload });
+      resetFormFields();
+    }
+
     render();
     drawChartsFor(statsMonth?.value || monthNow());
-
-    resetFormFields();
   });
 }
 
-btnClear?.addEventListener("click", resetFormFields);
+btnClear?.addEventListener("click", () => {
+  // se stavi modificando, il clear diventa “Annulla modifica”
+  if (EDIT_ID) cancelEdit();
+  else resetFormFields();
+});
 
 /* ===== Buttons ===== */
 btnDeleteAll?.addEventListener("click", () => {
   const ok = confirm("Vuoi cancellare TUTTI i dati salvati in questa app?");
   if (!ok) return;
   localStorage.removeItem(KEY);
+  cancelEdit();
   render();
   drawChartsFor(statsMonth?.value || monthNow());
 });
@@ -892,13 +1164,7 @@ themeSelect?.addEventListener("change", () => setTheme(themeSelect.value));
 /* tabs */
 tabs.forEach(t => {
   t.addEventListener("click", () => {
-    tabs.forEach(x => x.classList.remove("active"));
-    t.classList.add("active");
-    const v = t.getAttribute("data-view");
-    Object.values(views).forEach(s => s?.classList.remove("active"));
-    views[v]?.classList.add("active");
-    if (v === "statistiche") drawChartsFor(statsMonth?.value || monthNow());
-    if (v === "report") renderMonthlyTable();
+    switchTo(t.getAttribute("data-view"));
   });
 });
 
@@ -934,6 +1200,9 @@ btnInstall?.addEventListener("click", async () => {
 
   // stress display
   if (stressVal && stress) stressVal.textContent = stress.value;
+
+  setSubmitLabel();
+  ensureDayModal();
 
   render();
   drawChartsFor(statsMonth?.value || monthNow());

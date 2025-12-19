@@ -542,3 +542,37 @@ td{font-size:14px}
     text-align:right;
   }
 }
+
+/* =========================
+   FIX GRAFICI (canvas)
+   - più grandi
+   - width 100% del contenitore
+   - leggibili su mobile
+   ========================= */
+canvas {
+  display: block;
+  width: 100% !important;   /* <-- fondamentale: riempie la card */
+  height: 220px;            /* altezza stabile e leggibile */
+}
+
+/* Se vuoi ancora più alti su desktop */
+@media (min-width: 900px){
+  canvas { height: 260px; }
+}
+
+/* =========================
+   STAMPA: grafici visibili
+   ========================= */
+@media print{
+  .print-chart-img{
+    width: 100% !important;
+    height: auto !important;
+    display: block !important;
+    margin: 6mm 0 4mm 0;
+  }
+
+  .page-break{
+    break-before: page;
+    page-break-before: always;
+  }
+}

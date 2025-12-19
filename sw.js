@@ -1,4 +1,4 @@
-const CACHE = "cefalea-pwa-v8";
+const CACHE = "cefalea-pwa-v7";
 const ASSETS = [
   "./",
   "./index.html",

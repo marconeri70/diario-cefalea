@@ -47,7 +47,7 @@
          VIEW: DIARIO
          ======================= -->
     <section class="view active" id="view-diario">
-      <div class="card">
+      <div class="card" id="card-form">
         <div class="card-head">
           <div>
             <h2>Inserisci attacco</h2>
@@ -156,7 +156,7 @@
         </form>
       </div>
 
-      <div class="card">
+      <div class="card" id="card-registro">
         <div class="card-head">
           <div>
             <h2>Registro</h2>
@@ -268,7 +268,7 @@
         <div class="card-head">
           <div>
             <h2>Report mensile (stampa / PDF)</h2>
-            <div class="muted">Genera un report “presentabile” con intestazione e grafici.</div>
+            <div class="muted">Tocca un giorno o usa ＋ Aggiungi per inserire un attacco con la data già pronta.</div>
           </div>
 
           <div class="actions">
@@ -290,6 +290,7 @@
                 <th>Farmaci</th>
                 <th>Risposta</th>
                 <th>Note / Trigger</th>
+                <th>Azioni</th>
               </tr>
             </thead>
             <tbody id="monthlyRows"></tbody>

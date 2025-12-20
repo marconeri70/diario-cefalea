@@ -1,8 +1,8 @@
 /* =========================
    Diario Cefalea — app.js (COMPLETO, aggiornato)
    - ✅ Data globale (#globalDate) sincronizzata su TUTTE le schede
+   - ✅ STAMPA: Grafici + Tabella report + Note medico (multi-pagina)
    - ✅ PDF vero (jsPDF) + Condivisione (WhatsApp via share sheet)
-   - Stampa separata (window.print) rimane disponibile
    ========================= */
 
 const KEY = "cefalea_attacks_v2";
@@ -159,16 +159,13 @@ function applyGlobalDate(dateISO, opts = { scrollReport: true }){
   try{
     setSelectedDate(dateISO);
 
-    // ✅ aggiorna input globali
     if (globalDate) globalDate.value = dateISO;
 
     const m = dateISO.slice(0,7);
     if (month) month.value = m;
 
-    // ✅ aggiorna data nel Diario
     setDateField(dateISO);
 
-    // ✅ aggiorna tutto
     render();
     renderMonthlyTable(dateISO, opts.scrollReport);
     drawChartsFor(m);
@@ -199,7 +196,9 @@ function getSelectedTriggers(){
 function setSelectedTriggers(list){
   const set = new Set(list || []);
   const chips = document.querySelectorAll("#triggerChips input[type=checkbox]");
-  chips.forEach(x => x.checked = set.has(x.value));
+  chips.forEach(x => x.checked = set.has(oopsSafe(x.value, set)));
+  // helper per robustezza: se value vuoto o undefined, non seleziona
+  function oopsSafe(v, s){ return (v && s.has(v)) ? v : ""; }
 }
 function clearTriggers(){
   const chips = document.querySelectorAll("#triggerChips input[type=checkbox]");
@@ -414,7 +413,11 @@ function startEdit(id){
   if (stressVal){ stressVal.textContent = String(a.stress ?? 0); }
 
   setSelectedMeds(a.meds || []);
-  setSelectedTriggers(a.triggers || []);
+  // trigger
+  const set = new Set(a.triggers || []);
+  document.querySelectorAll("#triggerChips input[type=checkbox]").forEach(x => {
+    x.checked = set.has(x.value);
+  });
 
   setSubmitLabel();
   switchTo("diario");
@@ -883,10 +886,67 @@ function drawChartsFor(yyyyMM){
 }
 
 /* =========================
-   STAMPA (rimane)
+   ✅ STAMPA: Grafici + Tabella + Note medico
    ========================= */
-function buildPrintHTML(){
-  const yyyyMM = (month?.value || monthNow()).trim();
+function buildMonthlyTableHTML_ForPrint(yyyyMM){
+  const dcount = daysInMonth(yyyyMM);
+  const map = attacksByDayForMonth(yyyyMM);
+
+  let body = "";
+  for (let day=1; day<=dcount; day++){
+    const iso = isoOfDay(yyyyMM, day);
+    const d = new Date(iso + "T00:00:00");
+    const dow = d.toLocaleDateString("it-IT", { weekday:"short" });
+    const wk = isWeekend(iso) ? " (weekend)" : "";
+
+    const dayAttacks = map.get(iso) || [];
+
+    if (!dayAttacks.length){
+      body += `
+        <tr>
+          <td>${String(day).padStart(2,"0")}/${yyyyMM.slice(5,7)} (${dow})${wk}</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+        </tr>
+      `;
+      continue;
+    }
+
+    const s = summarizeDayAttacks(dayAttacks);
+    body += `
+      <tr>
+        <td>${String(day).padStart(2,"0")}/${yyyyMM.slice(5,7)} (${dow})${wk}</td>
+        <td><strong>${s.maxInt}</strong>/10</td>
+        <td>${s.sumDur} h</td>
+        <td>${escapeHtml(s.meds || "—")}</td>
+        <td>${escapeHtml(s.worstEff || "—")}</td>
+        <td>${escapeHtml(s.trigNote || "—")}</td>
+      </tr>
+    `;
+  }
+
+  return `
+    <table class="ptv-table">
+      <thead>
+        <tr>
+          <th style="width:16%">Giorno</th>
+          <th style="width:10%">Intensità</th>
+          <th style="width:10%">Durata</th>
+          <th style="width:18%">Farmaci</th>
+          <th style="width:12%">Risposta</th>
+          <th>Note / Trigger</th>
+        </tr>
+      </thead>
+      <tbody>${body}</tbody>
+    </table>
+  `;
+}
+
+function buildPrintHTML(yyyyMM){
+  // rigenera grafici e poi li converte in immagini
   drawChartsFor(yyyyMM);
 
   const imgInt = chartIntensity ? chartIntensity.toDataURL("image/png") : "";
@@ -895,56 +955,179 @@ function buildPrintHTML(){
 
   const label = monthLabel(yyyyMM);
   const nome = getPatientName() || "__________________________";
+  const genDate = new Date().toLocaleDateString("it-IT");
+
+  const tableHTMLPrint = buildMonthlyTableHTML_ForPrint(yyyyMM);
 
   const printCSS = `
     @page { size: A4; margin: 12mm; }
+    * { box-sizing: border-box; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:#111; }
-    img { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .header{display:flex;justify-content:space-between;align-items:center;border:1px solid #cfd6e4;border-radius:10px;background:#f7f9fd;padding:8px 10px;margin-bottom:10px}
-    .meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;margin:6px 0 10px 0;padding:8px 10px;border:1px solid #e1e7f2;border-radius:10px;background:#fff}
-    .chart{border:1px solid #e1e7f2;border-radius:10px;padding:8mm;margin:6mm 0;background:#fff;break-inside:avoid}
-    .chart img{width:100%;height:auto;max-height:88mm;object-fit:contain}
+    img{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    .ptv-header{
+      display:flex; justify-content:space-between; align-items:flex-start;
+      border:1px solid #cfd6e4; border-radius:12px;
+      padding:10px 12px; background:#f7f9fd; margin-bottom:10px;
+    }
+    .ptv-left strong{ display:block; font-size:12px; letter-spacing:.06em; }
+    .ptv-left span{ display:block; font-size:11px; color:#2b2b2b; margin-top:2px; font-weight:700; }
+    .ptv-right{ text-align:right; font-size:11px; color:#2b2b2b; font-weight:700; }
+
+    h1{ margin:10px 0 8px 0; font-size:16px; }
+    h3{ margin:10px 0 6px 0; font-size:12px; }
+
+    .ptv-meta{
+      display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;
+      border:1px solid #e1e7f2; border-radius:12px; padding:10px 12px; background:#fff;
+      font-size:11px; margin-bottom:10px;
+    }
+
+    .chart{
+      border:1px solid #e1e7f2; border-radius:12px;
+      padding: 7mm; margin: 6mm 0; background:#fff;
+      break-inside: avoid; page-break-inside: avoid;
+    }
+    .chart img{ display:block; width:100%; height:auto; max-height:88mm; object-fit:contain; }
+
+    .page-break{ break-before: page; page-break-before: always; }
+
+    .ptv-table{ width:100%; border-collapse:collapse; font-size:9px; }
+    .ptv-table th, .ptv-table td{ border:1px solid #b9c3d8; padding:6px; vertical-align:top; }
+    .ptv-table th{ background:#eef3ff; text-transform:uppercase; letter-spacing:.04em; font-size:9px; }
+    .ptv-table td{ white-space:normal; }
+
+    .note-box{
+      border:2px solid #111; border-radius:12px; padding:10px 12px; margin-top:10px;
+    }
+    .note-lines{
+      margin-top:8px;
+      height:140mm;
+      background-image: linear-gradient(to bottom, rgba(0,0,0,.14) 1px, transparent 1px);
+      background-size: 100% 10mm;
+      border-radius:10px;
+    }
+    .sign-row{
+      display:flex; justify-content:space-between; margin-top:10mm; font-size:11px;
+    }
+    .line{
+      display:inline-block; width:70mm; border-bottom:1px solid #111; transform: translateY(-2px);
+    }
   `;
 
   return `
-    <!doctype html><html lang="it"><head><meta charset="utf-8"><title>Report</title><style>${printCSS}</style></head>
-    <body>
-      <div class="header"><strong>FONDAZIONE PTV — Centro Cefalee</strong><span>${escapeHtml(label)}</span></div>
-      <div class="meta">
-        <div><strong>Nome e Cognome:</strong> ${escapeHtml(nome)}</div>
-        <div><strong>Referente:</strong> Dr.ssa Maria Albanese</div>
-        <div><strong>Data:</strong> ${new Date().toLocaleDateString("it-IT")}</div>
-      </div>
-      <div class="chart"><h3>Intensità (max) giorno per giorno</h3><img src="${imgInt}"></div>
-      <div class="chart"><h3>Trigger più frequenti</h3><img src="${imgTrig}"></div>
-      <div class="chart"><h3>Farmaci più usati</h3><img src="${imgMeds}"></div>
-    </body></html>
+    <!doctype html>
+    <html lang="it">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Report Cefalea</title>
+        <style>${printCSS}</style>
+      </head>
+      <body>
+        <div class="ptv-header">
+          <div class="ptv-left">
+            <strong>FONDAZIONE PTV</strong>
+            <span>Centro Cefalee — Policlinico Tor Vergata</span>
+          </div>
+          <div class="ptv-right">
+            Report Cefalea — ${escapeHtml(label)}<br/>
+            Data generazione: ${escapeHtml(genDate)}
+          </div>
+        </div>
+
+        <h1>Report Cefalea – ${escapeHtml(label)}</h1>
+
+        <div class="ptv-meta">
+          <div><strong>Nome e Cognome:</strong> ${escapeHtml(nome)}</div>
+          <div><strong>Referente Centro Cefalee:</strong> Dr.ssa Maria Albanese</div>
+        </div>
+
+        <div class="chart">
+          <h3>Intensità (max) giorno per giorno</h3>
+          ${imgInt ? `<img src="${imgInt}" alt="Grafico Intensità">` : `<div>Nessun dato.</div>`}
+        </div>
+
+        <div class="chart">
+          <h3>Trigger più frequenti</h3>
+          ${imgTrig ? `<img src="${imgTrig}" alt="Grafico Trigger">` : `<div>Nessun dato.</div>`}
+        </div>
+
+        <div class="chart">
+          <h3>Farmaci più usati</h3>
+          ${imgMeds ? `<img src="${imgMeds}" alt="Grafico Farmaci">` : `<div>Nessun dato.</div>`}
+        </div>
+
+        <div class="page-break"></div>
+
+        <h3>Tabella giornaliera</h3>
+        ${tableHTMLPrint}
+
+        <div class="page-break"></div>
+
+        <h3>Note del medico</h3>
+        <div class="note-box">
+          <div class="note-lines"></div>
+          <div class="sign-row">
+            <div>Firma: <span class="line"></span></div>
+            <div>Data: <span class="line"></span></div>
+          </div>
+        </div>
+      </body>
+    </html>
   `;
 }
 
 function printReport(){
-  const html = buildPrintHTML();
-  const w = window.open("", "_blank");
-  if (!w){
-    alert("Popup bloccato. Apri in Chrome e riprova.");
-    return;
+  try{
+    const yyyyMM = (month?.value || monthNow()).trim();
+    const html = buildPrintHTML(yyyyMM);
+
+    const w = window.open("", "_blank");
+    if (!w){
+      alert("Impossibile aprire la stampa: popup bloccato. Prova da Chrome.");
+      return;
+    }
+
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+
+    const waitImages = () => {
+      const imgs = Array.from(w.document.images || []);
+      if (!imgs.length) return Promise.resolve();
+      return Promise.all(imgs.map(img => {
+        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+        return new Promise(res => {
+          img.onload = () => res();
+          img.onerror = () => res();
+        });
+      }));
+    };
+
+    w.onload = async () => {
+      try{
+        await waitImages();
+        setTimeout(() => { w.focus(); w.print(); }, 250);
+      } catch {
+        setTimeout(() => { w.focus(); w.print(); }, 300);
+      }
+    };
+
+  }catch(err){
+    console.error(err);
+    alert("Errore stampa: " + (err?.message || err));
   }
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  w.onload = () => setTimeout(() => { w.focus(); w.print(); }, 250);
 }
 
 /* =========================
-   ✅ PDF vero (jsPDF) + share
+   ✅ PDF vero (jsPDF) + share (resta)
    ========================= */
 function safeGetJsPDF(){
-  // jsPDF UMD from CDN -> window.jspdf.jsPDF
   const jspdf = window.jspdf;
   if (!jspdf || !jspdf.jsPDF) return null;
   return jspdf.jsPDF;
 }
-
 function summarizeMonthForPdf(yyyyMM){
   const list = listForMonth(yyyyMM);
   const daysWithAttack = new Set(list.map(a => a.date)).size;
@@ -953,12 +1136,10 @@ function summarizeMonthForPdf(yyyyMM){
   const avgDur = att ? (list.reduce((s,a)=>s+Number(a.duration||0),0)/att).toFixed(1) : "—";
   return { att, daysWithAttack, avgInt, avgDur };
 }
-
 async function buildPdfBlob(yyyyMM){
   const JsPDF = safeGetJsPDF();
   if (!JsPDF) throw new Error("jsPDF non caricato (controlla connessione / CDN).");
 
-  // aggiorna grafici prima di catturare immagini
   drawChartsFor(yyyyMM);
   const imgInt = chartIntensity?.toDataURL("image/png") || null;
   const imgTrig = chartTriggers?.toDataURL("image/png") || null;
@@ -976,7 +1157,6 @@ async function buildPdfBlob(yyyyMM){
 
   const title = `Report Cefalea – ${label}`;
 
-  // Header “clinico”
   doc.setDrawColor(160);
   doc.setFillColor(247, 249, 253);
   doc.roundedRect(margin, margin, pageW - margin*2, 16, 3, 3, "F");
@@ -998,7 +1178,6 @@ async function buildPdfBlob(yyyyMM){
   doc.text(`Referente: Dr.ssa Maria Albanese`, margin, margin + 35);
   doc.text(`Data generazione: ${genDate}`, pageW - margin, margin + 35, { align: "right" });
 
-  // Sintesi mese
   doc.setDrawColor(210);
   doc.setFillColor(255,255,255);
   doc.roundedRect(margin, margin + 40, pageW - margin*2, 16, 3, 3, "F");
@@ -1011,7 +1190,6 @@ async function buildPdfBlob(yyyyMM){
   doc.text(`Intensità media: ${summary.avgInt}/10`, margin + 102, margin + 52);
   doc.text(`Durata media: ${summary.avgDur} h`, margin + 155, margin + 52);
 
-  // Inserisce grafici (3 blocchi)
   let y = margin + 62;
 
   function addChartBlock(titleText, dataUrl){
@@ -1023,7 +1201,6 @@ async function buildPdfBlob(yyyyMM){
     doc.setDrawColor(225);
     doc.roundedRect(margin, y + 2, pageW - margin*2, 58, 3, 3);
     if (dataUrl){
-      // immagine dentro box
       doc.addImage(dataUrl, "PNG", margin + 2, y + 4, pageW - margin*2 - 4, 54, undefined, "FAST");
     } else {
       doc.setFont("helvetica","normal");
@@ -1045,7 +1222,6 @@ async function buildPdfBlob(yyyyMM){
   }
   addChartBlock("Farmaci più usati", imgMeds);
 
-  // Seconda parte: tabella giornaliera + note medico
   doc.addPage();
   y = margin;
 
@@ -1057,7 +1233,6 @@ async function buildPdfBlob(yyyyMM){
   const map = attacksByDayForMonth(yyyyMM);
   const dcount = daysInMonth(yyyyMM);
 
-  // intestazione tabella
   const col = {
     day: margin,
     int: margin + 34,
@@ -1135,7 +1310,6 @@ async function buildPdfBlob(yyyyMM){
       vNote = s.trigNote || "—";
     }
 
-    // riga
     doc.setDrawColor(205);
     doc.rect(margin, y, pageW - margin*2, 6);
 
@@ -1145,7 +1319,6 @@ async function buildPdfBlob(yyyyMM){
     doc.text(vInt, col.int + 1, y + 4.2);
     doc.text(vDur, col.dur + 1, y + 4.2);
 
-    // testi lunghi tagliati per non “sfondare”
     doc.text(doc.splitTextToSize(vMeds, 56), col.med + 1, y + 4.2, { maxWidth: 56 });
     doc.text(doc.splitTextToSize(vEff, 20), col.eff + 1, y + 4.2, { maxWidth: 20 });
     doc.text(doc.splitTextToSize(vNote, pageW - margin - col.note - 2), col.note + 1, y + 4.2);
@@ -1153,7 +1326,6 @@ async function buildPdfBlob(yyyyMM){
     y += 6;
   }
 
-  // Box note medico (ultima pagina)
   if (y > pageH - margin - 70){
     doc.addPage();
     y = margin;
@@ -1167,7 +1339,6 @@ async function buildPdfBlob(yyyyMM){
 
   doc.setDrawColor(40);
   doc.roundedRect(margin, y, pageW - margin*2, 70, 3, 3);
-  // righe
   doc.setDrawColor(200);
   for (let i=1; i<=10; i++){
     const ly = y + i*6;
@@ -1194,7 +1365,6 @@ async function sharePdf(){
     const fileName = `Report_Cefalea_${yyyyMM}.pdf`;
     const file = new File([blob], fileName, { type: "application/pdf" });
 
-    // ✅ Share sheet (WhatsApp tra le opzioni)
     if (navigator.canShare && navigator.canShare({ files: [file] })){
       await navigator.share({
         files: [file],
@@ -1204,7 +1374,6 @@ async function sharePdf(){
       return;
     }
 
-    // Fallback: download
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -1246,7 +1415,9 @@ if (form){
     const sleepHoursVal = (el("sleepHours")?.value === "" || el("sleepHours") == null) ? null : Number(el("sleepHours").value);
     const weatherVal = el("weather")?.value || "";
     const foodsVal = el("foods")?.value || "";
-    const triggersManual = getSelectedTriggers();
+    const triggersManual = Array.from(document.querySelectorAll("#triggerChips input[type=checkbox]"))
+      .filter(x => x.checked)
+      .map(x => x.value);
 
     const trig = new Set([
       ...triggersManual,
@@ -1282,30 +1453,25 @@ if (form){
       setDateField(date);
     }
 
-    // ✅ importantissimo: salva/propaga la data globalmente
     applyGlobalDate(date, { scrollReport: false });
   });
 }
 
-// ✅ se cambi la data NEL DIARIO -> aggiorna data globale + mese + tutto
 el("date")?.addEventListener("change", () => {
   const d = el("date").value;
   if (d) applyGlobalDate(d, { scrollReport: true });
 });
 
-// ✅ se cambi la data IN ALTO -> aggiorna tutto
 globalDate?.addEventListener("change", () => {
   const d = globalDate.value;
   if (d) applyGlobalDate(d, { scrollReport: true });
 });
 
-// ✅ se cambi il mese IN ALTO -> aggiorna mese/grafici/report + sposta data globale al 1° del mese se fuori mese
 month?.addEventListener("change", () => {
   const m = (month.value || monthNow()).trim();
   const sel = getSelectedDate();
   const selM = sel.slice(0,7);
   if (selM !== m){
-    // porta la data al primo giorno del mese scelto
     applyGlobalDate(`${m}-01`, { scrollReport: true });
     return;
   }
@@ -1390,8 +1556,6 @@ btnInstall?.addEventListener("click", async () => {
   setTheme(th);
 
   const initialDate = getSelectedDate();
-
-  // ✅ imposta subito i controlli globali e sincronizza tutto
   applyGlobalDate(initialDate, { scrollReport: false });
 
   if (patientNameInput) patientNameInput.value = getPatientName();

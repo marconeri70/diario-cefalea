@@ -1,10 +1,9 @@
 /* =========================
    Diario Cefalea - app.js (COMPLETO, aggiornato)
+   - Data globale: cambia data ovunque e aggiorna mese/filtri/grafici/report
    - Report: azioni giorno per giorno (＋ Aggiungi / Apri)
    - Tap su giorno: porta su Diario con data pronta
-   - PDF/Print: tabella pulita + grafici inclusi (stampa HTML)
-   - PDF vero + Condivisione (WhatsApp): Share Sheet
-   - NOVITÀ: PDF più “clinico” con riquadro NOTE MEDICO + FIRMA
+   - PDF/Print: intestazione unica con logo PTV (dataURL), grafici inclusi
    ========================= */
 
 const KEY = "cefalea_attacks_v2";
@@ -47,10 +46,6 @@ const fileImport = el("fileImport");
 const btnPrintReportTop = el("btnPrintReportTop");
 const btnPrintReportBottom = el("btnPrintReportBottom");
 
-/* share PDF buttons */
-const btnSharePDFTop = el("btnSharePDFTop");
-const btnSharePDFBottom = el("btnSharePDFBottom");
-
 const patientNameInput = el("patientName");
 
 const stress = el("stress");
@@ -60,6 +55,10 @@ const themeSelect = el("themeSelect");
 const chartIntensity = el("chartIntensity");
 const chartTriggers = el("chartTriggers");
 const chartMeds = el("chartMeds");
+
+/* Data globale */
+const globalDate = el("globalDate");
+const btnGoToday = el("btnGoToday");
 
 /* PWA install */
 let deferredPrompt = null;
@@ -134,6 +133,41 @@ function escapeHtml(str){
 function cryptoId(){
   if (window.crypto?.randomUUID) return crypto.randomUUID();
   return "id_" + Math.random().toString(16).slice(2) + "_" + Date.now();
+}
+
+/* =========================
+   Global Date sync
+   ========================= */
+function setGlobalDate(dateISO){
+  if (!dateISO) return;
+  const m = dateISO.slice(0,7);
+
+  // Allinea mese ovunque
+  if (month) month.value = m;
+  if (statsMonth) statsMonth.value = m;
+  if (printMonth) printMonth.value = m;
+
+  // Diario: data pronta + filtro per quel giorno
+  setDateField(dateISO);
+  if (onlyWeekend) onlyWeekend.value = "all";
+  if (q) q.value = dateISO;
+
+  // Aggiorna UI
+  render();
+  drawChartsFor(m);
+  renderMonthlyTable();
+
+  // Se sei nel Report: scroll + evidenzia
+  if (views.report?.classList.contains("active")){
+    setTimeout(() => {
+      const row = document.querySelector(`[data-dayrow="${dateISO}"]`);
+      if (row){
+        row.scrollIntoView({ behavior:"smooth", block:"center" });
+        row.classList.add("flash");
+        setTimeout(()=> row.classList.remove("flash"), 1200);
+      }
+    }, 120);
+  }
 }
 
 /* =========================
@@ -502,6 +536,10 @@ function goToDiaryWithDate(dateISO){
   if (EDIT_ID) cancelEdit();
   switchTo("diario");
   setDateField(dateISO);
+
+  // aggiorna anche data globale
+  if (globalDate) globalDate.value = dateISO;
+
   el("card-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
   setTimeout(() => el("intensity")?.focus(), 250);
 }
@@ -687,8 +725,8 @@ function cssColor(varName, fallback){
 function ensureCanvasSize(canvas){
   if (!canvas) return { cssW: 0, cssH: 0, dpr: 1 };
   const dpr = Math.max(1, window.devicePixelRatio || 1);
-  const cssW = Math.max(720, Math.floor(canvas.clientWidth || 0) || 0);
-  const cssH = Math.max(320, Math.floor(canvas.clientHeight || 0) || 0);
+  const cssW = Math.max(820, Math.floor(canvas.clientWidth || 0) || 0);
+  const cssH = Math.max(360, Math.floor(canvas.clientHeight || 0) || 0);
 
   const needW = Math.floor(cssW * dpr);
   const needH = Math.floor(cssH * dpr);
@@ -709,7 +747,7 @@ function drawBarChart(canvas, labels, values, options){
   ctx.fillStyle = options.bgColor;
   ctx.fillRect(0,0,W,H);
 
-  const padL = 52, padR = 14, padT = 16, padB = 72;
+  const padL = 56, padR = 18, padT = 16, padB = 78;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
 
@@ -734,28 +772,29 @@ function drawBarChart(canvas, labels, values, options){
   }
 
   const n = labels.length;
-  const gap = 3;
-  const barW = n ? Math.max(3, (plotW / n) - gap) : plotW;
+  const gap = 4;
+  const barW = n ? Math.max(5, (plotW / n) - gap) : plotW;
 
   for (let i=0;i<n;i++){
     const v = values[i];
     const x = padL + i*(barW+gap);
     const h = (v / maxV) * plotH;
     const y = padT + (plotH - h);
+
     ctx.fillStyle = options.barColor;
     ctx.fillRect(x, y, barW, h);
   }
 
   ctx.fillStyle = options.textColor;
 
-  const smallFont = n > 25 ? 9 : 11;
+  const smallFont = n > 25 ? 10 : 12;
   ctx.font = `${smallFont}px system-ui`;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
 
   for (let i=0;i<n;i++){
     const x = padL + i*(barW+gap) + barW/2;
-    const y = H - padB + 24;
+    const y = H - padB + 26;
     if (n > 25 && (i+1) % 2 === 0) continue;
     ctx.fillText(labels[i], x, y);
   }
@@ -789,7 +828,7 @@ function drawChartsFor(yyyyMM){
   const bg = cssColor("--card", "#111a2d");
   const grid = cssColor("--line", "#24314f");
   const txt = cssColor("--muted", "#a6b3d1");
-  const bar = cssColor("--primary", "#2b6cff");
+  const bar = cssColor("--btn", "#2b6cff");
 
   drawBarChart(chartIntensity, labels, vals, { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar });
 
@@ -820,7 +859,7 @@ function drawChartsFor(yyyyMM){
 }
 
 /* =========================
-   PRINT / PDF (HTML print)
+   PRINT / PDF helpers
    ========================= */
 function buildMonthlyTableHTML_ForPrint(yyyyMM){
   const dcount = daysInMonth(yyyyMM);
@@ -875,29 +914,25 @@ function buildMonthlyTableHTML_ForPrint(yyyyMM){
   `;
 }
 
-/* NEW: box clinico (HTML) */
-function buildClinicalBoxHTML(){
-  return `
-    <div class="clinical">
-      <h3>Note del medico</h3>
-      <div class="clinical-box">
-        <div class="line"></div>
-        <div class="line"></div>
-        <div class="line"></div>
-        <div class="line"></div>
-        <div class="line"></div>
-        <div class="line"></div>
-      </div>
-      <div class="sign-row">
-        <div><strong>Firma e Timbro</strong>: ________________________________</div>
-        <div><strong>Data</strong>: ____ / ____ / ______</div>
-      </div>
-    </div>
-  `;
+function blobToDataURL(blob){
+  return new Promise((resolve) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.readAsDataURL(blob);
+  });
 }
 
-function buildPrintHTML(yyyyMM){
-  renderMonthlyTable();
+async function getAssetDataURL(path){
+  try{
+    const res = await fetch(path, { cache: "force-cache" });
+    const blob = await res.blob();
+    return await blobToDataURL(blob);
+  }catch{
+    return "";
+  }
+}
+
+function buildPrintHTML(yyyyMM, logoDataUrl){
   drawChartsFor(yyyyMM);
 
   const imgInt = chartIntensity ? chartIntensity.toDataURL("image/png") : "";
@@ -911,22 +946,38 @@ function buildPrintHTML(yyyyMM){
   const nome = getPatientName() || "__________________________";
 
   const tableHTMLPrint = buildMonthlyTableHTML_ForPrint(yyyyMM);
-  const clinicalHTML = buildClinicalBoxHTML();
 
   const printCSS = `
     @page { size: A4; margin: 12mm; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:#111; }
-    img{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-    .ptv-head{ display:flex; justify-content:space-between; gap:12px; margin-bottom: 8px; }
-    .ptv-title{ font-weight: 900; letter-spacing:.08em; font-size: 12px; }
-    .ptv-sub{ font-weight: 800; letter-spacing:.04em; font-size: 11px; color:#333; margin-top: 2px; }
+    .ptv-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom: 6px; }
+    .ptv-logo{ height:16mm; width:auto; object-fit:contain; }
+    .ptv-right{ font-weight:900; font-size:11px; color:#111; padding-top:2mm; }
+
     h1{ margin:10px 0 8px 0; font-size:16px; }
     h3{ margin:10px 0 6px 0; font-size:13px; }
-    .ptv-meta{ display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; font-size:11px; margin: 6px 0 8px 0; }
+
+    .ptv-meta{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+      font-size:11px;
+      margin: 6px 0 8px 0;
+    }
+
     .ptv-instr{ margin: 0 0 8px 0; font-size:11px; color:#333; }
 
-    .chart{ border:1px solid #ddd; border-radius:10px; padding: 6mm; margin: 6mm 0; break-inside: avoid; page-break-inside: avoid; }
+    .chart{
+      border:1px solid #ddd;
+      border-radius:10px;
+      padding: 6mm;
+      margin: 6mm 0;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
     .chart img{ display:block; width:100%; height:auto; max-height:85mm; object-fit:contain; }
 
     .page-break{ break-before: page; page-break-before: always; }
@@ -934,12 +985,6 @@ function buildPrintHTML(yyyyMM){
     table{ width:100%; border-collapse:collapse; font-size:10px; }
     th, td{ border:1px solid #bbb; padding:6px; vertical-align:top; white-space:normal; }
     th{ background:#f2f2f2; text-transform:uppercase; letter-spacing:.04em; }
-
-    /* Clinico */
-    .clinical{ margin-top: 10mm; }
-    .clinical-box{ border:1px solid #777; border-radius:8px; padding:8mm; height: 85mm; }
-    .clinical-box .line{ height: 12mm; border-bottom: 1px solid #d0d0d0; }
-    .sign-row{ display:flex; justify-content:space-between; gap:10mm; margin-top: 8mm; font-size: 11px; }
   `;
 
   return `
@@ -953,11 +998,8 @@ function buildPrintHTML(yyyyMM){
       </head>
       <body>
         <div class="ptv-head">
-          <div>
-            <div class="ptv-title">FONDAZIONE PTV</div>
-            <div class="ptv-sub">POLICLINICO TOR VERGATA</div>
-          </div>
-          <div class="ptv-sub">Centro Cefalee</div>
+          ${logoDataUrl ? `<img class="ptv-logo" src="${logoDataUrl}" alt="Fondazione PTV">` : `<div></div>`}
+          <div class="ptv-right">Centro Cefalee</div>
         </div>
 
         <h1>Report Cefalea – ${escapeHtml(label)}</h1>
@@ -992,8 +1034,6 @@ function buildPrintHTML(yyyyMM){
 
         <h3>Tabella giornaliera</h3>
         ${tableHTMLPrint}
-
-        ${clinicalHTML}
       </body>
     </html>
   `;
@@ -1002,7 +1042,11 @@ function buildPrintHTML(yyyyMM){
 async function printReport(){
   try{
     const m = (printMonth?.value || monthNow()).trim();
-    const html = buildPrintHTML(m);
+
+    // Logo PTV -> dataURL (così non dipende dal percorso e non duplica intestazioni)
+    const logoDataUrl = await getAssetDataURL("./assets/ptv.png");
+
+    const html = buildPrintHTML(m, logoDataUrl);
 
     const w = window.open("", "_blank");
     if (!w){
@@ -1043,333 +1087,6 @@ async function printReport(){
 
   }catch(err){
     alert("Errore stampa/PDF: " + (err?.message || err));
-    console.error(err);
-  }
-}
-
-/* =========================
-   PDF vero + Condivisione (WhatsApp)
-   ========================= */
-
-function buildMonthlyTableRowsForPDF(yyyyMM){
-  const dcount = daysInMonth(yyyyMM);
-  const map = attacksByDayForMonth(yyyyMM);
-  const rows = [];
-
-  for (let day=1; day<=dcount; day++){
-    const iso = isoOfDay(yyyyMM, day);
-    const d = new Date(iso + "T00:00:00");
-    const dow = d.toLocaleDateString("it-IT", { weekday:"short" });
-    const wk = isWeekend(iso) ? " (weekend)" : "";
-
-    const dayAttacks = map.get(iso) || [];
-    const dayLabel = `${String(day).padStart(2,"0")}/${yyyyMM.slice(5,7)} (${dow})${wk}`;
-
-    if (!dayAttacks.length){
-      rows.push([dayLabel, "—", "—", "—", "—", "—"]);
-      continue;
-    }
-
-    const s = summarizeDayAttacks(dayAttacks);
-    rows.push([
-      dayLabel,
-      `${s.maxInt}/10`,
-      `${s.sumDur} h`,
-      s.meds || "—",
-      s.worstEff || "—",
-      s.trigNote || "—"
-    ]);
-  }
-
-  return rows;
-}
-
-async function fetchImageAsDataURL(url){
-  try{
-    const res = await fetch(url, { cache: "force-cache" });
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    return await new Promise((resolve) => {
-      const r = new FileReader();
-      r.onload = () => resolve(r.result);
-      r.onerror = () => resolve(null);
-      r.readAsDataURL(blob);
-    });
-  }catch{
-    return null;
-  }
-}
-
-function ensurePDFLib(){
-  const jsPDF = window.jspdf?.jsPDF;
-  if (!jsPDF) return null;
-  return jsPDF;
-}
-
-/* NEW: disegna riquadro “Note del medico” in jsPDF */
-function addClinicalPagePDF(doc){
-  const margin = 12;
-  const pageW = 210;
-  const pageH = 297;
-  const contentW = pageW - margin*2;
-
-  doc.addPage();
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.text("Note del medico", margin, margin);
-
-  // box grande
-  const boxY = margin + 8;
-  const boxH = 120;
-  doc.setDrawColor(90);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(margin, boxY, contentW, boxH, 3, 3);
-
-  // righe leggere
-  doc.setDrawColor(200);
-  const lines = 8;
-  for (let i=1;i<=lines;i++){
-    const y = boxY + (boxH/lines)*i;
-    doc.line(margin + 4, y, margin + contentW - 4, y);
-  }
-
-  // firma + data
-  const signY = boxY + boxH + 18;
-  doc.setDrawColor(90);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-
-  doc.text("Firma e Timbro:", margin, signY);
-  doc.line(margin + 32, signY + 1, margin + 110, signY + 1);
-
-  doc.text("Data:", margin + 128, signY);
-  doc.line(margin + 142, signY + 1, margin + contentW, signY + 1);
-
-  // footer mini
-  doc.setTextColor(120);
-  doc.setFontSize(9);
-  doc.text("Sezione riservata al Centro Cefalee", margin, pageH - margin);
-  doc.setTextColor(20);
-}
-
-async function generateReportPDFBlob(yyyyMM){
-  const jsPDF = ensurePDFLib();
-  if (!jsPDF) throw new Error("Libreria PDF non caricata. Ricarica la pagina e riprova.");
-
-  // rigenera grafici prima di catturarli
-  drawChartsFor(yyyyMM);
-
-  const label = monthLabel(yyyyMM);
-  const nome = getPatientName() || "__________________________";
-  const today = new Date().toLocaleDateString("it-IT");
-
-  const doc = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
-
-  const margin = 12;
-  const pageW = 210;
-  const contentW = pageW - margin*2;
-
-  const title = `Report Cefalea – ${label}`;
-
-  // Logo opzionale (se esiste)
-  const ptvLogo = await fetchImageAsDataURL("./assets/ptv.png");
-
-  // Header
-  doc.setTextColor(20);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-
-  let y = margin;
-
-  if (ptvLogo){
-    doc.addImage(ptvLogo, "PNG", margin, y, 18, 18);
-    doc.text("FONDAZIONE PTV", margin + 22, y + 7);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text("POLICLINICO TOR VERGATA", margin + 22, y + 13);
-    y += 22;
-  } else {
-    doc.text("FONDAZIONE PTV", margin, y + 6);
-    doc.setFontSize(10);
-    doc.text("POLICLINICO TOR VERGATA", margin, y + 12);
-    y += 16;
-  }
-
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text("Centro Cefalee", pageW - margin, margin + 6, { align: "right" });
-
-  y += 2;
-  doc.setDrawColor(180);
-  doc.line(margin, y, pageW - margin, y);
-  y += 8;
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.text(title, margin, y);
-  y += 8;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.text(`Nome e Cognome: ${nome}`, margin, y); y += 6;
-  doc.text(`Referente Centro Cefalee: Dr.ssa Maria Albanese`, margin, y); y += 6;
-  doc.text(`Data generazione: ${today}`, margin, y); y += 8;
-
-  doc.setFontSize(10);
-  doc.setTextColor(70);
-  doc.text("Compila ogni riga indicando la frequenza, intensità, durata e risposta ai farmaci.", margin, y);
-  doc.setTextColor(20);
-
-  // Charts pages
-  const hasAnyData = listForMonth(yyyyMM).length > 0;
-
-  const imgInt = (hasAnyData && chartIntensity) ? chartIntensity.toDataURL("image/png", 1.0) : null;
-  const imgTrig = (hasAnyData && chartTriggers) ? chartTriggers.toDataURL("image/png", 1.0) : null;
-  const imgMeds = (hasAnyData && chartMeds) ? chartMeds.toDataURL("image/png", 1.0) : null;
-
-  const chartH = 85;
-
-  // Page 1 chart intensity
-  y += 10;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text("Intensità (max) giorno per giorno", margin, y);
-  y += 6;
-
-  doc.setDrawColor(220);
-  doc.rect(margin, y, contentW, chartH);
-
-  if (imgInt){
-    doc.addImage(imgInt, "PNG", margin + 2, y + 2, contentW - 4, chartH - 4, undefined, "FAST");
-  } else {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(90);
-    doc.text("Nessun dato registrato nel mese.", margin + 6, y + 12);
-    doc.setTextColor(20);
-  }
-
-  // Page 2: trigger + meds
-  doc.addPage();
-  y = margin;
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text("Trigger più frequenti", margin, y); y += 6;
-  doc.setDrawColor(220);
-  doc.rect(margin, y, contentW, chartH);
-
-  if (imgTrig){
-    doc.addImage(imgTrig, "PNG", margin + 2, y + 2, contentW - 4, chartH - 4, undefined, "FAST");
-  } else {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(90);
-    doc.text("Nessun dato registrato nel mese.", margin + 6, y + 12);
-    doc.setTextColor(20);
-  }
-
-  y += chartH + 12;
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text("Farmaci più usati", margin, y); y += 6;
-  doc.setDrawColor(220);
-  doc.rect(margin, y, contentW, chartH);
-
-  if (imgMeds){
-    doc.addImage(imgMeds, "PNG", margin + 2, y + 2, contentW - 4, chartH - 4, undefined, "FAST");
-  } else {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(90);
-    doc.text("Nessun dato registrato nel mese.", margin + 6, y + 12);
-    doc.setTextColor(20);
-  }
-
-  // Page 3: table
-  doc.addPage();
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text("Tabella giornaliera", margin, margin);
-
-  const tableRows = buildMonthlyTableRowsForPDF(yyyyMM);
-
-  doc.autoTable({
-    startY: margin + 6,
-    head: [[ "Giorno", "Intensità", "Durata", "Farmaci", "Risposta", "Note / Trigger" ]],
-    body: tableRows,
-    theme: "grid",
-    styles: {
-      font: "helvetica",
-      fontSize: 8.5,
-      cellPadding: 2,
-      overflow: "linebreak",
-      valign: "top"
-    },
-    headStyles: {
-      fillColor: [242, 242, 242],
-      textColor: [30, 30, 30],
-      fontStyle: "bold"
-    },
-    columnStyles: {
-      0: { cellWidth: 34 },
-      1: { cellWidth: 18 },
-      2: { cellWidth: 16 },
-      3: { cellWidth: 42 },
-      4: { cellWidth: 20 },
-      5: { cellWidth: contentW - (34+18+16+42+20) }
-    },
-    margin: { left: margin, right: margin }
-  });
-
-  /* NEW: pagina clinica Note medico + firma */
-  addClinicalPagePDF(doc);
-
-  const blob = doc.output("blob");
-  return blob;
-}
-
-async function shareReportPDF(){
-  const m = (printMonth?.value || monthNow()).trim();
-
-  try{
-    const oldTextTop = btnSharePDFTop?.textContent;
-    const oldTextBottom = btnSharePDFBottom?.textContent;
-    if (btnSharePDFTop) btnSharePDFTop.textContent = "⏳ Preparazione PDF...";
-    if (btnSharePDFBottom) btnSharePDFBottom.textContent = "⏳ Preparazione PDF...";
-
-    const blob = await generateReportPDFBlob(m);
-    const filename = `Report_Cefalea_${m}.pdf`;
-    const file = new File([blob], filename, { type: "application/pdf" });
-
-    const canShareFiles = !!navigator.canShare && navigator.canShare({ files: [file] });
-
-    if (navigator.share && canShareFiles){
-      await navigator.share({
-        title: "Report Cefalea",
-        text: `Report mensile (${monthLabel(m)})`,
-        files: [file]
-      });
-    } else {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      alert("Il tuo browser non supporta la condivisione diretta.\nHo avviato il download del PDF.");
-    }
-
-    if (btnSharePDFTop) btnSharePDFTop.textContent = oldTextTop || "📲 Invia PDF (WhatsApp)";
-    if (btnSharePDFBottom) btnSharePDFBottom.textContent = oldTextBottom || "📲 Invia PDF (WhatsApp)";
-
-  }catch(err){
-    if (btnSharePDFTop) btnSharePDFTop.textContent = "📲 Invia PDF (WhatsApp)";
-    if (btnSharePDFBottom) btnSharePDFBottom.textContent = "📲 Invia PDF (WhatsApp)";
-    alert("Errore nella creazione/condivisione del PDF: " + (err?.message || err));
     console.error(err);
   }
 }
@@ -1435,6 +1152,9 @@ if (form){
       setDateField(date);
     }
 
+    // allinea data globale quando salvi
+    if (globalDate) globalDate.value = date;
+
     render();
     drawChartsFor(statsMonth?.value || monthNow());
   });
@@ -1477,9 +1197,6 @@ btnPrintReportTop?.addEventListener("click", () => {
 });
 btnPrintReportBottom?.addEventListener("click", () => printReport());
 
-btnSharePDFTop?.addEventListener("click", () => shareReportPDF());
-btnSharePDFBottom?.addEventListener("click", () => shareReportPDF());
-
 patientNameInput?.addEventListener("input", () => setPatientName(patientNameInput.value));
 
 stress?.addEventListener("input", () => {
@@ -1494,6 +1211,14 @@ themeSelect?.addEventListener("change", () => setTheme(themeSelect.value));
 
 tabs.forEach(t => {
   t.addEventListener("click", () => switchTo(t.getAttribute("data-view")));
+});
+
+/* Data globale events */
+globalDate?.addEventListener("change", () => setGlobalDate(globalDate.value));
+btnGoToday?.addEventListener("click", () => {
+  const d = isoToday();
+  if (globalDate) globalDate.value = d;
+  setGlobalDate(d);
 });
 
 /* PWA install */
@@ -1521,7 +1246,10 @@ btnInstall?.addEventListener("click", async () => {
   if (themeSelect) themeSelect.value = th;
   setTheme(th);
 
-  setDateField(isoToday());
+  const today = isoToday();
+  if (globalDate) globalDate.value = today;
+
+  setDateField(today);
   if (month) month.value = monthNow();
   if (statsMonth) statsMonth.value = monthNow();
   if (printMonth) printMonth.value = monthNow();

@@ -1,4 +1,4 @@
-const CACHE = "cefalea-pwa-v36";
+const CACHE = "cefalea-pwa-v40";
 
 const ASSETS = [
   "./",

@@ -614,3 +614,62 @@ p{ margin: 0; }
   .tab{ padding: 10px 12px; }
   .tab-ico{ width: 28px; height: 28px; }
 }
+
+/* =========================
+   Intensità "clinica" (verde/ambra/rosso)
+   - Badge intensità
+   - Evidenziazione riga tabella (Registro + Report)
+   - Evidenziazione card mobile
+   ========================= */
+
+/* Badge */
+.intensity-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 900;
+  font-size: 12px;
+  letter-spacing: .02em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+/* Verde 1–3 */
+.intensity-low{
+  background: rgba(34,197,94,.14);
+  border-color: rgba(34,197,94,.35);
+  color: rgb(34,197,94);
+}
+
+/* Ambra 4–6 */
+.intensity-mid{
+  background: rgba(245,158,11,.14);
+  border-color: rgba(245,158,11,.35);
+  color: rgb(245,158,11);
+}
+
+/* Rosso 7–10 */
+.intensity-high{
+  background: rgba(239,68,68,.14);
+  border-color: rgba(239,68,68,.35);
+  color: rgb(239,68,68);
+}
+
+/* Righe tabella (Registro + Report) */
+tr.sev-low  { background: rgba(34,197,94,.05); }
+tr.sev-mid  { background: rgba(245,158,11,.05); }
+tr.sev-high { background: rgba(239,68,68,.05); }
+
+/* Cards mobile (bordo clinico) */
+.card-row.sev-low  { border-left: 6px solid rgba(34,197,94,.55); }
+.card-row.sev-mid  { border-left: 6px solid rgba(245,158,11,.55); }
+.card-row.sev-high { border-left: 6px solid rgba(239,68,68,.55); }
+
+/* (opzionale) rendi più evidente al passaggio */
+tr.sev-low:hover,
+tr.sev-mid:hover,
+tr.sev-high:hover{
+  filter: brightness(1.03);
+}

@@ -1,14 +1,14 @@
 /* =========================
-   Diario Cefalea - app.js (COMPLETO, aggiornato)
-   - Data globale: cambia data ovunque e aggiorna mese/filtri/grafici/report
-   - Report: azioni giorno per giorno (＋ Aggiungi / Apri)
-   - Tap su giorno: porta su Diario con data pronta
-   - PDF/Print: intestazione unica con logo PTV (dataURL), grafici inclusi
+   Diario Cefalea — app.js (COMPLETO, aggiornato)
+   - ✅ Data globale (#globalDate) sincronizzata su TUTTE le schede
+   - ✅ PDF vero (jsPDF) + Condivisione (WhatsApp via share sheet)
+   - Stampa separata (window.print) rimane disponibile
    ========================= */
 
 const KEY = "cefalea_attacks_v2";
 const KEY_NAME = "cefalea_patient_name_v2";
 const KEY_THEME = "cefalea_theme_v1";
+const KEY_SELECTED_DATE = "cefalea_selected_date_v1";
 
 const el = (id) => document.getElementById(id);
 
@@ -25,14 +25,13 @@ const rows = el("rows");
 const cards = el("cards");
 const stats = el("stats");
 
-const month = el("month");
+const month = el("month");            // mese globale
+const globalDate = el("globalDate");  // ✅ data globale
 const onlyWeekend = el("onlyWeekend");
 const q = el("q");
 
-const statsMonth = el("statsMonth");
 const btnRefreshCharts = el("btnRefreshCharts");
 
-const printMonth = el("printMonth");
 const monthlyRows = el("monthlyRows");
 
 const btnExportMonth = el("btnExportMonth");
@@ -46,6 +45,10 @@ const fileImport = el("fileImport");
 const btnPrintReportTop = el("btnPrintReportTop");
 const btnPrintReportBottom = el("btnPrintReportBottom");
 
+// ✅ share pdf buttons
+const btnSharePdfTop = el("btnSharePdfTop");
+const btnSharePdfBottom = el("btnSharePdfBottom");
+
 const patientNameInput = el("patientName");
 
 const stress = el("stress");
@@ -56,16 +59,15 @@ const chartIntensity = el("chartIntensity");
 const chartTriggers = el("chartTriggers");
 const chartMeds = el("chartMeds");
 
-/* Data globale */
-const globalDate = el("globalDate");
-const btnGoToday = el("btnGoToday");
-
 /* PWA install */
 let deferredPrompt = null;
 const btnInstall = el("btnInstall");
 
 /* Edit state */
 let EDIT_ID = null;
+
+/* Date sync guard */
+let __syncLock = false;
 
 /* =========================
    Storage helpers
@@ -90,6 +92,16 @@ function setTheme(v){
   const t = (v || "auto").trim();
   localStorage.setItem(KEY_THEME, t);
   document.documentElement.setAttribute("data-theme", t);
+}
+
+function getSelectedDate(){
+  const saved = (localStorage.getItem(KEY_SELECTED_DATE) || "").trim();
+  if (saved && /^\d{4}-\d{2}-\d{2}$/.test(saved)) return saved;
+  return isoToday();
+}
+function setSelectedDate(dateISO){
+  if (!dateISO || !/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) return;
+  localStorage.setItem(KEY_SELECTED_DATE, dateISO);
 }
 
 /* =========================
@@ -136,37 +148,33 @@ function cryptoId(){
 }
 
 /* =========================
-   Global Date sync
+   Global date sync
    ========================= */
-function setGlobalDate(dateISO){
-  if (!dateISO) return;
-  const m = dateISO.slice(0,7);
+function applyGlobalDate(dateISO, opts = { scrollReport: true }){
+  if (!dateISO || !/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) return;
 
-  // Allinea mese ovunque
-  if (month) month.value = m;
-  if (statsMonth) statsMonth.value = m;
-  if (printMonth) printMonth.value = m;
+  if (__syncLock) return;
+  __syncLock = true;
 
-  // Diario: data pronta + filtro per quel giorno
-  setDateField(dateISO);
-  if (onlyWeekend) onlyWeekend.value = "all";
-  if (q) q.value = dateISO;
+  try{
+    setSelectedDate(dateISO);
 
-  // Aggiorna UI
-  render();
-  drawChartsFor(m);
-  renderMonthlyTable();
+    // ✅ aggiorna input globali
+    if (globalDate) globalDate.value = dateISO;
 
-  // Se sei nel Report: scroll + evidenzia
-  if (views.report?.classList.contains("active")){
-    setTimeout(() => {
-      const row = document.querySelector(`[data-dayrow="${dateISO}"]`);
-      if (row){
-        row.scrollIntoView({ behavior:"smooth", block:"center" });
-        row.classList.add("flash");
-        setTimeout(()=> row.classList.remove("flash"), 1200);
-      }
-    }, 120);
+    const m = dateISO.slice(0,7);
+    if (month) month.value = m;
+
+    // ✅ aggiorna data nel Diario
+    setDateField(dateISO);
+
+    // ✅ aggiorna tutto
+    render();
+    renderMonthlyTable(dateISO, opts.scrollReport);
+    drawChartsFor(m);
+
+  } finally {
+    __syncLock = false;
   }
 }
 
@@ -342,8 +350,9 @@ function switchTo(viewKey){
   Object.values(views).forEach(s => s?.classList.remove("active"));
   views[viewKey]?.classList.add("active");
 
-  if (viewKey === "statistiche") drawChartsFor(statsMonth?.value || monthNow());
-  if (viewKey === "report") renderMonthlyTable();
+  const m = (month?.value || monthNow()).trim();
+  if (viewKey === "statistiche") drawChartsFor(m);
+  if (viewKey === "report") renderMonthlyTable(getSelectedDate(), true);
 
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -391,7 +400,8 @@ function startEdit(id){
   if (!a) return;
 
   EDIT_ID = id;
-  setDateField(a.date || isoToday());
+  applyGlobalDate(a.date, { scrollReport: false });
+
   if (el("time")) el("time").value = a.time || "";
   if (el("intensity")) el("intensity").value = a.intensity ?? "";
   if (el("duration")) el("duration").value = a.duration ?? "";
@@ -464,7 +474,7 @@ function render(){
           </div>
           <div class="small" style="margin-top:8px"><strong>Durata:</strong> ${a.duration} h</div>
           <div class="small"><strong>Farmaci:</strong> ${escapeHtml(meds)}</div>
-          <div class="small"><strong>Efficacia:</strong> ${escapeHtml(a.efficacy)}</div>
+          <div class="small"><strong>Risposta:</strong> ${escapeHtml(a.efficacy)}</div>
           <div class="small"><strong>Trigger:</strong> ${escapeHtml(trig)}</div>
           <div class="small"><strong>Note:</strong> ${escapeHtml(note)}</div>
           <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px">
@@ -482,8 +492,8 @@ function render(){
       if (EDIT_ID === id) cancelEdit();
       removeAttack(id);
       render();
-      renderMonthlyTable();
-      drawChartsFor(statsMonth?.value || monthNow());
+      renderMonthlyTable(getSelectedDate(), false);
+      drawChartsFor((month?.value || monthNow()).trim());
     });
   });
 
@@ -495,7 +505,6 @@ function render(){
   });
 
   renderStats(list);
-  renderMonthlyTable();
 }
 
 /* =========================
@@ -534,19 +543,13 @@ function summarizeDayAttacks(dayAttacks){
 
 function goToDiaryWithDate(dateISO){
   if (EDIT_ID) cancelEdit();
+  applyGlobalDate(dateISO, { scrollReport: false });
   switchTo("diario");
-  setDateField(dateISO);
-
-  // aggiorna anche data globale
-  if (globalDate) globalDate.value = dateISO;
-
   el("card-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
   setTimeout(() => el("intensity")?.focus(), 250);
 }
-
 function goToDiaryOpenDay(dateISO){
-  const m = dateISO.slice(0,7);
-  if (month) month.value = m;
+  applyGlobalDate(dateISO, { scrollReport: false });
   if (q) q.value = dateISO;
   if (onlyWeekend) onlyWeekend.value = "all";
   render();
@@ -579,15 +582,28 @@ function bindReportActions(){
   });
 }
 
+function highlightAndScrollToDate(dateISO){
+  if (!dateISO) return;
+  const row = document.querySelector(`[data-dayrow="${dateISO}"]`);
+  if (!row) return;
+
+  row.style.outline = "3px solid rgba(43,108,255,.55)";
+  row.style.borderRadius = "10px";
+
+  row.scrollIntoView({ behavior: "smooth", block: "center" });
+
+  setTimeout(() => {
+    row.style.outline = "";
+  }, 2500);
+}
+
 /* =========================
    Report monthly table (UI)
    ========================= */
-function renderMonthlyTable(){
-  if (!monthlyRows || !printMonth) return;
+function renderMonthlyTable(selectedDateISO = null, doScroll = true){
+  if (!monthlyRows || !month) return;
 
-  const m = printMonth.value || monthNow();
-  printMonth.value = m;
-
+  const m = (month.value || monthNow()).trim();
   const dcount = daysInMonth(m);
   const map = attacksByDayForMonth(m);
 
@@ -632,6 +648,10 @@ function renderMonthlyTable(){
 
   monthlyRows.innerHTML = html;
   bindReportActions();
+
+  if (doScroll && selectedDateISO && selectedDateISO.slice(0,7) === m){
+    setTimeout(() => highlightAndScrollToDate(selectedDateISO), 220);
+  }
 }
 
 /* =========================
@@ -706,7 +726,7 @@ function importJSON(file){
       merged.sort((x,y) => (y.date+(y.time||"")).localeCompare(x.date+(x.time||"")));
       save(merged);
       render();
-      drawChartsFor(statsMonth?.value || monthNow());
+      drawChartsFor((month?.value || monthNow()).trim());
       alert("Import completato ✅");
     }catch(e){
       alert("Import non riuscito: file non valido");
@@ -726,32 +746,30 @@ function ensureCanvasSize(canvas){
   if (!canvas) return { cssW: 0, cssH: 0, dpr: 1 };
   const dpr = Math.max(1, window.devicePixelRatio || 1);
   const cssW = Math.max(820, Math.floor(canvas.clientWidth || 0) || 0);
-  const cssH = Math.max(360, Math.floor(canvas.clientHeight || 0) || 0);
-
+  const cssH = Math.max(340, Math.floor(canvas.clientHeight || 0) || 0);
   const needW = Math.floor(cssW * dpr);
   const needH = Math.floor(cssH * dpr);
-
   if (canvas.width !== needW) canvas.width = needW;
   if (canvas.height !== needH) canvas.height = needH;
-
   const ctx = canvas.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   return { cssW, cssH, dpr };
 }
-
 function drawBarChart(canvas, labels, values, options){
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   const { cssW: W, cssH: H } = ensureCanvasSize(canvas);
 
+  ctx.clearRect(0,0,W,H);
   ctx.fillStyle = options.bgColor;
   ctx.fillRect(0,0,W,H);
 
-  const padL = 56, padR = 18, padT = 16, padB = 78;
+  const padL = 54, padR = 14, padT = 16, padB = options.rotateX ? 92 : 72;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
 
   const maxV = Math.max(1, ...values);
+
   ctx.strokeStyle = options.gridColor;
   ctx.fillStyle = options.textColor;
   ctx.lineWidth = 1;
@@ -772,34 +790,42 @@ function drawBarChart(canvas, labels, values, options){
   }
 
   const n = labels.length;
-  const gap = 4;
-  const barW = n ? Math.max(5, (plotW / n) - gap) : plotW;
+  const gap = 2;
+  const barW = n ? Math.max(2, (plotW / n) - gap) : plotW;
 
   for (let i=0;i<n;i++){
     const v = values[i];
     const x = padL + i*(barW+gap);
     const h = (v / maxV) * plotH;
     const y = padT + (plotH - h);
-
     ctx.fillStyle = options.barColor;
     ctx.fillRect(x, y, barW, h);
   }
 
   ctx.fillStyle = options.textColor;
-
-  const smallFont = n > 25 ? 10 : 12;
-  ctx.font = `${smallFont}px system-ui`;
+  ctx.font = `${options.xFont || 10}px system-ui`;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
 
   for (let i=0;i<n;i++){
     const x = padL + i*(barW+gap) + barW/2;
     const y = H - padB + 26;
-    if (n > 25 && (i+1) % 2 === 0) continue;
-    ctx.fillText(labels[i], x, y);
+
+    const shouldSkip = options.forceAllX ? false : (n > 25 && (i+1) % 2 === 0);
+    if (shouldSkip) continue;
+
+    if (options.rotateX){
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(-Math.PI/3);
+      ctx.textAlign = "right";
+      ctx.fillText(labels[i], 0, 0);
+      ctx.restore();
+    } else {
+      ctx.fillText(labels[i], x, y);
+    }
   }
 }
-
 function topCounts(items){
   const m = new Map();
   for (const it of items){
@@ -808,7 +834,6 @@ function topCounts(items){
   }
   return Array.from(m.entries()).sort((a,b)=>b[1]-a[1]);
 }
-
 function drawChartsFor(yyyyMM){
   const list = listForMonth(yyyyMM);
   const dcount = daysInMonth(yyyyMM);
@@ -828,9 +853,12 @@ function drawChartsFor(yyyyMM){
   const bg = cssColor("--card", "#111a2d");
   const grid = cssColor("--line", "#24314f");
   const txt = cssColor("--muted", "#a6b3d1");
-  const bar = cssColor("--btn", "#2b6cff");
+  const bar = cssColor("--primary", "#2b6cff");
 
-  drawBarChart(chartIntensity, labels, vals, { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar });
+  drawBarChart(chartIntensity, labels, vals, {
+    bgColor: bg, gridColor: grid, textColor: txt, barColor: bar,
+    forceAllX: true, rotateX: true, xFont: 10
+  });
 
   const allTrig = [];
   for (const a of list){
@@ -838,256 +866,358 @@ function drawChartsFor(yyyyMM){
     t.forEach(x => allTrig.push(x));
   }
   const trigCounts = topCounts(allTrig).slice(0, 10);
-  drawBarChart(
-    chartTriggers,
-    trigCounts.map(x=>x[0]),
-    trigCounts.map(x=>x[1]),
-    { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar }
-  );
+  drawBarChart(chartTriggers, trigCounts.map(x=>x[0]), trigCounts.map(x=>x[1]), {
+    bgColor: bg, gridColor: grid, textColor: txt, barColor: bar,
+    forceAllX: false, rotateX: true, xFont: 10
+  });
 
   const allMeds = [];
   for (const a of list){
     (a.meds||[]).forEach(x => allMeds.push(x));
   }
   const medsCounts = topCounts(allMeds).slice(0, 10);
-  drawBarChart(
-    chartMeds,
-    medsCounts.map(x=>x[0].replace(" (FANS)","")),
-    medsCounts.map(x=>x[1]),
-    { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar }
-  );
-}
-
-/* =========================
-   PRINT / PDF helpers
-   ========================= */
-function buildMonthlyTableHTML_ForPrint(yyyyMM){
-  const dcount = daysInMonth(yyyyMM);
-  const map = attacksByDayForMonth(yyyyMM);
-
-  let body = "";
-  for (let day=1; day<=dcount; day++){
-    const iso = isoOfDay(yyyyMM, day);
-    const d = new Date(iso + "T00:00:00");
-    const dow = d.toLocaleDateString("it-IT", { weekday:"short" });
-    const wk = isWeekend(iso) ? " (weekend)" : "";
-
-    const dayAttacks = map.get(iso) || [];
-
-    if (dayAttacks.length === 0){
-      body += `
-        <tr>
-          <td>${String(day).padStart(2,"0")}/${yyyyMM.slice(5,7)} (${dow})${wk}</td>
-          <td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>
-        </tr>
-      `;
-      continue;
-    }
-
-    const s = summarizeDayAttacks(dayAttacks);
-    body += `
-      <tr>
-        <td>${String(day).padStart(2,"0")}/${yyyyMM.slice(5,7)} (${dow})${wk}</td>
-        <td><strong>${s.maxInt}</strong>/10</td>
-        <td>${s.sumDur} h</td>
-        <td>${escapeHtml(s.meds || "—")}</td>
-        <td>${escapeHtml(s.worstEff || "—")}</td>
-        <td>${escapeHtml(s.trigNote || "—")}</td>
-      </tr>
-    `;
-  }
-
-  return `
-    <table>
-      <thead>
-        <tr>
-          <th>Giorno</th>
-          <th>Intensità</th>
-          <th>Durata</th>
-          <th>Farmaci</th>
-          <th>Risposta</th>
-          <th>Note / Trigger</th>
-        </tr>
-      </thead>
-      <tbody>${body}</tbody>
-    </table>
-  `;
-}
-
-function blobToDataURL(blob){
-  return new Promise((resolve) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result);
-    r.readAsDataURL(blob);
+  drawBarChart(chartMeds, medsCounts.map(x=>x[0].replace(" (FANS)","")), medsCounts.map(x=>x[1]), {
+    bgColor: bg, gridColor: grid, textColor: txt, barColor: bar,
+    forceAllX: false, rotateX: true, xFont: 10
   });
 }
 
-async function getAssetDataURL(path){
-  try{
-    const res = await fetch(path, { cache: "force-cache" });
-    const blob = await res.blob();
-    return await blobToDataURL(blob);
-  }catch{
-    return "";
-  }
-}
-
-function buildPrintHTML(yyyyMM, logoDataUrl){
+/* =========================
+   STAMPA (rimane)
+   ========================= */
+function buildPrintHTML(){
+  const yyyyMM = (month?.value || monthNow()).trim();
   drawChartsFor(yyyyMM);
 
   const imgInt = chartIntensity ? chartIntensity.toDataURL("image/png") : "";
   const imgTrig = chartTriggers ? chartTriggers.toDataURL("image/png") : "";
   const imgMeds = chartMeds ? chartMeds.toDataURL("image/png") : "";
 
-  const monthList = listForMonth(yyyyMM);
-  const hasAnyData = monthList.length > 0;
-
   const label = monthLabel(yyyyMM);
   const nome = getPatientName() || "__________________________";
-
-  const tableHTMLPrint = buildMonthlyTableHTML_ForPrint(yyyyMM);
 
   const printCSS = `
     @page { size: A4; margin: 12mm; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:#111; }
-    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-
-    .ptv-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom: 6px; }
-    .ptv-logo{ height:16mm; width:auto; object-fit:contain; }
-    .ptv-right{ font-weight:900; font-size:11px; color:#111; padding-top:2mm; }
-
-    h1{ margin:10px 0 8px 0; font-size:16px; }
-    h3{ margin:10px 0 6px 0; font-size:13px; }
-
-    .ptv-meta{
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-      flex-wrap:wrap;
-      font-size:11px;
-      margin: 6px 0 8px 0;
-    }
-
-    .ptv-instr{ margin: 0 0 8px 0; font-size:11px; color:#333; }
-
-    .chart{
-      border:1px solid #ddd;
-      border-radius:10px;
-      padding: 6mm;
-      margin: 6mm 0;
-      break-inside: avoid;
-      page-break-inside: avoid;
-    }
-    .chart img{ display:block; width:100%; height:auto; max-height:85mm; object-fit:contain; }
-
-    .page-break{ break-before: page; page-break-before: always; }
-
-    table{ width:100%; border-collapse:collapse; font-size:10px; }
-    th, td{ border:1px solid #bbb; padding:6px; vertical-align:top; white-space:normal; }
-    th{ background:#f2f2f2; text-transform:uppercase; letter-spacing:.04em; }
+    img { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .header{display:flex;justify-content:space-between;align-items:center;border:1px solid #cfd6e4;border-radius:10px;background:#f7f9fd;padding:8px 10px;margin-bottom:10px}
+    .meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;margin:6px 0 10px 0;padding:8px 10px;border:1px solid #e1e7f2;border-radius:10px;background:#fff}
+    .chart{border:1px solid #e1e7f2;border-radius:10px;padding:8mm;margin:6mm 0;background:#fff;break-inside:avoid}
+    .chart img{width:100%;height:auto;max-height:88mm;object-fit:contain}
   `;
 
   return `
-    <!doctype html>
-    <html lang="it">
-      <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Report Cefalea</title>
-        <style>${printCSS}</style>
-      </head>
-      <body>
-        <div class="ptv-head">
-          ${logoDataUrl ? `<img class="ptv-logo" src="${logoDataUrl}" alt="Fondazione PTV">` : `<div></div>`}
-          <div class="ptv-right">Centro Cefalee</div>
-        </div>
-
-        <h1>Report Cefalea – ${escapeHtml(label)}</h1>
-
-        <div class="ptv-meta">
-          <div><strong>Nome e Cognome:</strong> ${escapeHtml(nome)}</div>
-          <div><strong>Referente Centro Cefalee:</strong> Dr.ssa Maria Albanese</div>
-          <div><strong>Data generazione:</strong> ${new Date().toLocaleDateString("it-IT")}</div>
-        </div>
-
-        <p class="ptv-instr">Compila ogni riga indicando la frequenza, intensità, durata e risposta ai farmaci.</p>
-
-        <div class="chart">
-          <h3>Intensità (max) giorno per giorno</h3>
-          ${hasAnyData && imgInt ? `<img src="${imgInt}" alt="Grafico Intensità">`
-          : `<p class="ptv-instr">Nessun dato registrato nel mese.</p>`}
-        </div>
-
-        <div class="chart">
-          <h3>Trigger più frequenti</h3>
-          ${hasAnyData && imgTrig ? `<img src="${imgTrig}" alt="Grafico Trigger">`
-          : `<p class="ptv-instr">Nessun dato registrato nel mese.</p>`}
-        </div>
-
-        <div class="chart">
-          <h3>Farmaci più usati</h3>
-          ${hasAnyData && imgMeds ? `<img src="${imgMeds}" alt="Grafico Farmaci">`
-          : `<p class="ptv-instr">Nessun dato registrato nel mese.</p>`}
-        </div>
-
-        <div class="page-break"></div>
-
-        <h3>Tabella giornaliera</h3>
-        ${tableHTMLPrint}
-      </body>
-    </html>
+    <!doctype html><html lang="it"><head><meta charset="utf-8"><title>Report</title><style>${printCSS}</style></head>
+    <body>
+      <div class="header"><strong>FONDAZIONE PTV — Centro Cefalee</strong><span>${escapeHtml(label)}</span></div>
+      <div class="meta">
+        <div><strong>Nome e Cognome:</strong> ${escapeHtml(nome)}</div>
+        <div><strong>Referente:</strong> Dr.ssa Maria Albanese</div>
+        <div><strong>Data:</strong> ${new Date().toLocaleDateString("it-IT")}</div>
+      </div>
+      <div class="chart"><h3>Intensità (max) giorno per giorno</h3><img src="${imgInt}"></div>
+      <div class="chart"><h3>Trigger più frequenti</h3><img src="${imgTrig}"></div>
+      <div class="chart"><h3>Farmaci più usati</h3><img src="${imgMeds}"></div>
+    </body></html>
   `;
 }
 
-async function printReport(){
+function printReport(){
+  const html = buildPrintHTML();
+  const w = window.open("", "_blank");
+  if (!w){
+    alert("Popup bloccato. Apri in Chrome e riprova.");
+    return;
+  }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  w.onload = () => setTimeout(() => { w.focus(); w.print(); }, 250);
+}
+
+/* =========================
+   ✅ PDF vero (jsPDF) + share
+   ========================= */
+function safeGetJsPDF(){
+  // jsPDF UMD from CDN -> window.jspdf.jsPDF
+  const jspdf = window.jspdf;
+  if (!jspdf || !jspdf.jsPDF) return null;
+  return jspdf.jsPDF;
+}
+
+function summarizeMonthForPdf(yyyyMM){
+  const list = listForMonth(yyyyMM);
+  const daysWithAttack = new Set(list.map(a => a.date)).size;
+  const att = list.length;
+  const avgInt = att ? (list.reduce((s,a)=>s+Number(a.intensity||0),0)/att).toFixed(1) : "—";
+  const avgDur = att ? (list.reduce((s,a)=>s+Number(a.duration||0),0)/att).toFixed(1) : "—";
+  return { att, daysWithAttack, avgInt, avgDur };
+}
+
+async function buildPdfBlob(yyyyMM){
+  const JsPDF = safeGetJsPDF();
+  if (!JsPDF) throw new Error("jsPDF non caricato (controlla connessione / CDN).");
+
+  // aggiorna grafici prima di catturare immagini
+  drawChartsFor(yyyyMM);
+  const imgInt = chartIntensity?.toDataURL("image/png") || null;
+  const imgTrig = chartTriggers?.toDataURL("image/png") || null;
+  const imgMeds = chartMeds?.toDataURL("image/png") || null;
+
+  const doc = new JsPDF({ unit: "mm", format: "a4" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 12;
+
+  const nome = getPatientName() || "__________________________";
+  const label = monthLabel(yyyyMM);
+  const genDate = new Date().toLocaleDateString("it-IT");
+  const summary = summarizeMonthForPdf(yyyyMM);
+
+  const title = `Report Cefalea – ${label}`;
+
+  // Header “clinico”
+  doc.setDrawColor(160);
+  doc.setFillColor(247, 249, 253);
+  doc.roundedRect(margin, margin, pageW - margin*2, 16, 3, 3, "F");
+  doc.setTextColor(20);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("FONDAZIONE PTV — Centro Cefalee", margin + 4, margin + 6);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text(label, pageW - margin - 4, margin + 6, { align: "right" });
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text(title, margin, margin + 24);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text(`Nome e Cognome: ${nome}`, margin, margin + 30);
+  doc.text(`Referente: Dr.ssa Maria Albanese`, margin, margin + 35);
+  doc.text(`Data generazione: ${genDate}`, pageW - margin, margin + 35, { align: "right" });
+
+  // Sintesi mese
+  doc.setDrawColor(210);
+  doc.setFillColor(255,255,255);
+  doc.roundedRect(margin, margin + 40, pageW - margin*2, 16, 3, 3, "F");
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(9);
+  doc.text("Sintesi mese", margin + 4, margin + 46);
+  doc.setFont("helvetica","normal");
+  doc.text(`Attacchi: ${summary.att}`, margin + 4, margin + 52);
+  doc.text(`Giorni con attacco: ${summary.daysWithAttack}`, margin + 45, margin + 52);
+  doc.text(`Intensità media: ${summary.avgInt}/10`, margin + 102, margin + 52);
+  doc.text(`Durata media: ${summary.avgDur} h`, margin + 155, margin + 52);
+
+  // Inserisce grafici (3 blocchi)
+  let y = margin + 62;
+
+  function addChartBlock(titleText, dataUrl){
+    doc.setFont("helvetica","bold");
+    doc.setFontSize(10);
+    doc.text(titleText, margin, y);
+    y += 3;
+
+    doc.setDrawColor(225);
+    doc.roundedRect(margin, y + 2, pageW - margin*2, 58, 3, 3);
+    if (dataUrl){
+      // immagine dentro box
+      doc.addImage(dataUrl, "PNG", margin + 2, y + 4, pageW - margin*2 - 4, 54, undefined, "FAST");
+    } else {
+      doc.setFont("helvetica","normal");
+      doc.setFontSize(9);
+      doc.text("Nessun dato disponibile.", margin + 4, y + 14);
+    }
+    y += 64;
+  }
+
+  addChartBlock("Intensità (max) giorno per giorno", imgInt);
+  if (y + 70 > pageH - margin){
+    doc.addPage();
+    y = margin + 10;
+  }
+  addChartBlock("Trigger più frequenti", imgTrig);
+  if (y + 70 > pageH - margin){
+    doc.addPage();
+    y = margin + 10;
+  }
+  addChartBlock("Farmaci più usati", imgMeds);
+
+  // Seconda parte: tabella giornaliera + note medico
+  doc.addPage();
+  y = margin;
+
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(11);
+  doc.text("Tabella giornaliera", margin, y);
+  y += 6;
+
+  const map = attacksByDayForMonth(yyyyMM);
+  const dcount = daysInMonth(yyyyMM);
+
+  // intestazione tabella
+  const col = {
+    day: margin,
+    int: margin + 34,
+    dur: margin + 52,
+    med: margin + 72,
+    eff: margin + 132,
+    note: margin + 154
+  };
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica","bold");
+  doc.setFillColor(241,245,255);
+  doc.rect(margin, y, pageW - margin*2, 6, "F");
+  doc.setDrawColor(210);
+  doc.rect(margin, y, pageW - margin*2, 6);
+  doc.text("Giorno", col.day + 1, y + 4.2);
+  doc.text("Int", col.int + 1, y + 4.2);
+  doc.text("Dur", col.dur + 1, y + 4.2);
+  doc.text("Farmaci", col.med + 1, y + 4.2);
+  doc.text("Risposta", col.eff + 1, y + 4.2);
+  doc.text("Note/Trigger", col.note + 1, y + 4.2);
+
+  y += 6;
+
+  doc.setFont("helvetica","normal");
+  doc.setFontSize(7.2);
+
+  function newPageTable(){
+    doc.addPage();
+    y = margin;
+    doc.setFont("helvetica","bold");
+    doc.setFontSize(11);
+    doc.text("Tabella giornaliera (continua)", margin, y);
+    y += 6;
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica","bold");
+    doc.setFillColor(241,245,255);
+    doc.rect(margin, y, pageW - margin*2, 6, "F");
+    doc.setDrawColor(210);
+    doc.rect(margin, y, pageW - margin*2, 6);
+    doc.text("Giorno", col.day + 1, y + 4.2);
+    doc.text("Int", col.int + 1, y + 4.2);
+    doc.text("Dur", col.dur + 1, y + 4.2);
+    doc.text("Farmaci", col.med + 1, y + 4.2);
+    doc.text("Risposta", col.eff + 1, y + 4.2);
+    doc.text("Note/Trigger", col.note + 1, y + 4.2);
+    y += 6;
+
+    doc.setFont("helvetica","normal");
+    doc.setFontSize(7.2);
+  }
+
+  for (let day=1; day<=dcount; day++){
+    if (y > pageH - margin - 40) newPageTable();
+
+    const iso = isoOfDay(yyyyMM, day);
+    const d = new Date(iso + "T00:00:00");
+    const dow = d.toLocaleDateString("it-IT", { weekday:"short" });
+    const wk = isWeekend(iso) ? "wk" : "";
+    const dayAttacks = map.get(iso) || [];
+
+    let vInt = "—";
+    let vDur = "—";
+    let vMeds = "—";
+    let vEff = "—";
+    let vNote = "—";
+
+    if (dayAttacks.length){
+      const s = summarizeDayAttacks(dayAttacks);
+      vInt = `${s.maxInt}/10`;
+      vDur = `${s.sumDur}h`;
+      vMeds = s.meds || "—";
+      vEff = s.worstEff || "—";
+      vNote = s.trigNote || "—";
+    }
+
+    // riga
+    doc.setDrawColor(205);
+    doc.rect(margin, y, pageW - margin*2, 6);
+
+    const dayText = `${String(day).padStart(2,"0")}/${yyyyMM.slice(5,7)} ${dow} ${wk}`.trim();
+    doc.text(dayText, col.day + 1, y + 4.2);
+
+    doc.text(vInt, col.int + 1, y + 4.2);
+    doc.text(vDur, col.dur + 1, y + 4.2);
+
+    // testi lunghi tagliati per non “sfondare”
+    doc.text(doc.splitTextToSize(vMeds, 56), col.med + 1, y + 4.2, { maxWidth: 56 });
+    doc.text(doc.splitTextToSize(vEff, 20), col.eff + 1, y + 4.2, { maxWidth: 20 });
+    doc.text(doc.splitTextToSize(vNote, pageW - margin - col.note - 2), col.note + 1, y + 4.2);
+
+    y += 6;
+  }
+
+  // Box note medico (ultima pagina)
+  if (y > pageH - margin - 70){
+    doc.addPage();
+    y = margin;
+  }
+
+  y += 8;
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(11);
+  doc.text("Note del medico", margin, y);
+  y += 4;
+
+  doc.setDrawColor(40);
+  doc.roundedRect(margin, y, pageW - margin*2, 70, 3, 3);
+  // righe
+  doc.setDrawColor(200);
+  for (let i=1; i<=10; i++){
+    const ly = y + i*6;
+    doc.line(margin + 3, ly, pageW - margin - 3, ly);
+  }
+
+  y += 78;
+  doc.setDrawColor(120);
+  doc.line(margin + 20, y, margin + 90, y);
+  doc.line(pageW - margin - 90, y, pageW - margin - 20, y);
+  doc.setFont("helvetica","normal");
+  doc.setFontSize(9);
+  doc.text("Firma", margin + 4, y + 1);
+  doc.text("Data", pageW - margin - 100, y + 1);
+
+  const blob = doc.output("blob");
+  return blob;
+}
+
+async function sharePdf(){
   try{
-    const m = (printMonth?.value || monthNow()).trim();
+    const yyyyMM = (month?.value || monthNow()).trim();
+    const blob = await buildPdfBlob(yyyyMM);
+    const fileName = `Report_Cefalea_${yyyyMM}.pdf`;
+    const file = new File([blob], fileName, { type: "application/pdf" });
 
-    // Logo PTV -> dataURL (così non dipende dal percorso e non duplica intestazioni)
-    const logoDataUrl = await getAssetDataURL("./assets/ptv.png");
-
-    const html = buildPrintHTML(m, logoDataUrl);
-
-    const w = window.open("", "_blank");
-    if (!w){
-      alert("Impossibile aprire la stampa: popup bloccato. Prova da Chrome.");
+    // ✅ Share sheet (WhatsApp tra le opzioni)
+    if (navigator.canShare && navigator.canShare({ files: [file] })){
+      await navigator.share({
+        files: [file],
+        title: "Report Cefalea",
+        text: `Report cefalea – ${monthLabel(yyyyMM)}`
+      });
       return;
     }
 
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
+    // Fallback: download
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
 
-    const waitImages = () => {
-      const imgs = Array.from(w.document.images || []);
-      if (!imgs.length) return Promise.resolve();
-      return Promise.all(imgs.map(img => {
-        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-        return new Promise(res => {
-          img.onload = () => res();
-          img.onerror = () => res();
-        });
-      }));
-    };
-
-    w.onload = async () => {
-      try{
-        await waitImages();
-        setTimeout(() => {
-          w.focus();
-          w.print();
-        }, 250);
-      }catch{
-        setTimeout(() => {
-          w.focus();
-          w.print();
-        }, 300);
-      }
-    };
-
-  }catch(err){
-    alert("Errore stampa/PDF: " + (err?.message || err));
+    alert("Il tuo dispositivo non supporta la condivisione diretta di file.\nHo scaricato il PDF: ora puoi condividerlo manualmente su WhatsApp.");
+  } catch(err){
     console.error(err);
+    alert("Errore creazione/condivisione PDF: " + (err?.message || err));
   }
 }
 
@@ -1152,13 +1282,37 @@ if (form){
       setDateField(date);
     }
 
-    // allinea data globale quando salvi
-    if (globalDate) globalDate.value = date;
-
-    render();
-    drawChartsFor(statsMonth?.value || monthNow());
+    // ✅ importantissimo: salva/propaga la data globalmente
+    applyGlobalDate(date, { scrollReport: false });
   });
 }
+
+// ✅ se cambi la data NEL DIARIO -> aggiorna data globale + mese + tutto
+el("date")?.addEventListener("change", () => {
+  const d = el("date").value;
+  if (d) applyGlobalDate(d, { scrollReport: true });
+});
+
+// ✅ se cambi la data IN ALTO -> aggiorna tutto
+globalDate?.addEventListener("change", () => {
+  const d = globalDate.value;
+  if (d) applyGlobalDate(d, { scrollReport: true });
+});
+
+// ✅ se cambi il mese IN ALTO -> aggiorna mese/grafici/report + sposta data globale al 1° del mese se fuori mese
+month?.addEventListener("change", () => {
+  const m = (month.value || monthNow()).trim();
+  const sel = getSelectedDate();
+  const selM = sel.slice(0,7);
+  if (selM !== m){
+    // porta la data al primo giorno del mese scelto
+    applyGlobalDate(`${m}-01`, { scrollReport: true });
+    return;
+  }
+  render();
+  renderMonthlyTable(sel, true);
+  drawChartsFor(m);
+});
 
 btnClear?.addEventListener("click", () => {
   if (EDIT_ID) cancelEdit();
@@ -1171,17 +1325,16 @@ btnDeleteAll?.addEventListener("click", () => {
   localStorage.removeItem(KEY);
   cancelEdit();
   render();
-  drawChartsFor(statsMonth?.value || monthNow());
+  drawChartsFor((month?.value || monthNow()).trim());
 });
 
-month?.addEventListener("change", render);
 onlyWeekend?.addEventListener("change", render);
 q?.addEventListener("input", () => {
   clearTimeout(window.__qT);
   window.__qT = setTimeout(render, 150);
 });
 
-btnExportMonth?.addEventListener("click", () => exportCSV(month?.value || monthNow(), "month"));
+btnExportMonth?.addEventListener("click", () => exportCSV((month?.value || monthNow()).trim(), "month"));
 btnExportAll?.addEventListener("click", () => exportCSV(monthNow(), "all"));
 
 btnBackup?.addEventListener("click", backupJSON);
@@ -1191,11 +1344,11 @@ fileImport?.addEventListener("change", (e) => {
   fileImport.value = "";
 });
 
-btnPrintReportTop?.addEventListener("click", () => {
-  if (printMonth && month?.value) printMonth.value = month.value;
-  printReport();
-});
-btnPrintReportBottom?.addEventListener("click", () => printReport());
+btnPrintReportTop?.addEventListener("click", printReport);
+btnPrintReportBottom?.addEventListener("click", printReport);
+
+btnSharePdfTop?.addEventListener("click", sharePdf);
+btnSharePdfBottom?.addEventListener("click", sharePdf);
 
 patientNameInput?.addEventListener("input", () => setPatientName(patientNameInput.value));
 
@@ -1203,22 +1356,12 @@ stress?.addEventListener("input", () => {
   if (stressVal) stressVal.textContent = stress.value;
 });
 
-btnRefreshCharts?.addEventListener("click", () => drawChartsFor(statsMonth?.value || monthNow()));
-statsMonth?.addEventListener("change", () => drawChartsFor(statsMonth?.value || monthNow()));
-printMonth?.addEventListener("change", renderMonthlyTable);
+btnRefreshCharts?.addEventListener("click", () => drawChartsFor((month?.value || monthNow()).trim()));
 
 themeSelect?.addEventListener("change", () => setTheme(themeSelect.value));
 
 tabs.forEach(t => {
   t.addEventListener("click", () => switchTo(t.getAttribute("data-view")));
-});
-
-/* Data globale events */
-globalDate?.addEventListener("change", () => setGlobalDate(globalDate.value));
-btnGoToday?.addEventListener("click", () => {
-  const d = isoToday();
-  if (globalDate) globalDate.value = d;
-  setGlobalDate(d);
 });
 
 /* PWA install */
@@ -1246,24 +1389,18 @@ btnInstall?.addEventListener("click", async () => {
   if (themeSelect) themeSelect.value = th;
   setTheme(th);
 
-  const today = isoToday();
-  if (globalDate) globalDate.value = today;
+  const initialDate = getSelectedDate();
 
-  setDateField(today);
-  if (month) month.value = monthNow();
-  if (statsMonth) statsMonth.value = monthNow();
-  if (printMonth) printMonth.value = monthNow();
+  // ✅ imposta subito i controlli globali e sincronizza tutto
+  applyGlobalDate(initialDate, { scrollReport: false });
 
   if (patientNameInput) patientNameInput.value = getPatientName();
   if (stressVal && stress) stressVal.textContent = stress.value;
 
   setSubmitLabel();
 
-  render();
-  drawChartsFor(statsMonth?.value || monthNow());
-
   window.addEventListener("resize", () => {
-    drawChartsFor(statsMonth?.value || monthNow());
+    drawChartsFor((month?.value || monthNow()).trim());
   });
 
   if ("serviceWorker" in navigator) {

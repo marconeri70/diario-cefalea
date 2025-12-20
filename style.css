@@ -1,19 +1,23 @@
 /* =========================
    Diario Cefalea — style.css (COMPLETO, aggiornato)
-   - Grafica più cromatica e intuitiva
-   - Tab con icone
+   - Grafica più cromatica e intuitiva (effetto "wow")
+   - Header più ordinato + safe-area iOS
+   - Tabs con icone
    - Mobile: pulito e touch-friendly
    - Tabelle: scroll orizzontale fluido + cards su mobile
+   - Print: evita doppie intestazioni (se stampi dalla pagina principale)
    ========================= */
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
+
 body{
   margin: 0;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   line-height: 1.35;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 /* ===== Theme tokens ===== */
@@ -41,6 +45,12 @@ body{
   --bg0: #070b14;
   --bg1: #0b1220;
 
+  /* Glow generali più “premium” */
+  --glowA: rgba(43,108,255,.22);
+  --glowB: rgba(79,230,255,.18);
+  --glowC: rgba(255,183,79,.14);
+  --glowD: rgba(183,146,255,.14);
+
   --bgGrad:
     radial-gradient(1100px 520px at 15% -10%, rgba(43,108,255,.55), transparent 60%),
     radial-gradient(900px 480px at 85% 0%, rgba(79,230,255,.25), transparent 55%),
@@ -59,8 +69,15 @@ body{
     --card2: rgba(255,255,255,.70);
     --shadow: 0 18px 45px rgba(11,18,32,.12);
     --shadow-soft: 0 10px 24px rgba(11,18,32,.10);
+
     --bg0: #f4f7ff;
     --bg1: #ffffff;
+
+    --glowA: rgba(43,108,255,.14);
+    --glowB: rgba(79,230,255,.10);
+    --glowC: rgba(255,183,79,.10);
+    --glowD: rgba(183,146,255,.10);
+
     --bgGrad:
       radial-gradient(900px 520px at 15% -10%, rgba(43,108,255,.18), transparent 65%),
       radial-gradient(900px 520px at 85% 0%, rgba(79,230,255,.14), transparent 65%),
@@ -77,8 +94,15 @@ body{
   --card2: rgba(255,255,255,.70);
   --shadow: 0 18px 45px rgba(11,18,32,.12);
   --shadow-soft: 0 10px 24px rgba(11,18,32,.10);
+
   --bg0: #f4f7ff;
   --bg1: #ffffff;
+
+  --glowA: rgba(43,108,255,.14);
+  --glowB: rgba(79,230,255,.10);
+  --glowC: rgba(255,183,79,.10);
+  --glowD: rgba(183,146,255,.10);
+
   --bgGrad:
     radial-gradient(900px 520px at 15% -10%, rgba(43,108,255,.18), transparent 65%),
     radial-gradient(900px 520px at 85% 0%, rgba(79,230,255,.14), transparent 65%),
@@ -98,6 +122,7 @@ body{
 a { color: inherit; text-decoration: none; }
 h1,h2,h3{ margin: 0; }
 p{ margin: 0; }
+
 .muted{ color: var(--muted); }
 .hint{
   margin-top: 6px;
@@ -115,36 +140,47 @@ p{ margin: 0; }
   position: sticky;
   top: 0;
   z-index: 50;
-  backdrop-filter: blur(10px);
+
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
   background: color-mix(in srgb, var(--bg1) 76%, transparent);
   border-bottom: 1px solid var(--line);
+
+  /* ✅ safe-area iOS (notch) */
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  padding-left: calc(12px + env(safe-area-inset-left, 0px));
+  padding-right: calc(12px + env(safe-area-inset-right, 0px));
+  padding-bottom: 12px;
 }
 
-.app-header{
-  width: 100%;
-  padding: 12px;
+/* Contenitori allineati su max-width */
+.app-header .brand,
+.app-header .header-actions{
+  width: min(1120px, 100%);
+  margin: 0 auto;
 }
+
 .app-header .brand{
   display: flex;
   align-items: center;
   gap: 12px;
-  width: min(1120px, calc(100% - 0px));
-  margin: 0 auto;
-  justify-content: space-between;
+  justify-content: flex-start; /* ✅ prima era space-between: dava layout strani */
 }
 
 .logo{
   width: 140px;
   height: auto;
-  border-radius: 10px;
-  background: rgba(255,255,255,.10);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--card2) 70%, transparent);
   padding: 6px 10px;
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 24px rgba(0,0,0,.12);
 }
 
 .brand-text{
   flex: 1;
   min-width: 0;
-  margin-left: 10px;
 }
 .brand-title{
   font-weight: 950;
@@ -157,13 +193,17 @@ p{ margin: 0; }
   margin-top: 2px;
 }
 
+/* Riga campi header (data/mese/tema) */
 .header-actions{
+  margin-top: 10px;
   display: flex;
   gap: 10px;
   align-items: flex-end;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+
+.header-field{ min-width: 150px; }
 
 .header-field .label{
   font-size: 11px;
@@ -180,15 +220,21 @@ p{ margin: 0; }
   color: var(--text);
   outline: none;
   box-shadow: 0 0 0 rgba(0,0,0,0);
-  transition: transform .08s ease, box-shadow .12s ease, border-color .12s ease;
+  transition: transform .08s ease, box-shadow .12s ease, border-color .12s ease, filter .12s ease;
 }
+
+/* ✅ iOS: evitare zoom (soprattutto su input date/select) */
+input, select, textarea { font-size: 16px; }
+
 .input:focus{
   border-color: color-mix(in srgb, var(--primary) 60%, var(--line));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent);
+  filter: brightness(1.03);
 }
 
 .textarea{ resize: vertical; }
 
+/* ===== Buttons ===== */
 .btn{
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -197,10 +243,15 @@ p{ margin: 0; }
   color: var(--text);
   background: color-mix(in srgb, var(--card) 80%, transparent);
   box-shadow: var(--shadow-soft);
-  transition: transform .08s ease, filter .12s ease;
+  transition: transform .08s ease, filter .12s ease, box-shadow .12s ease;
   user-select: none;
 }
-.btn:hover{ filter: brightness(1.05); }
+
+.btn:hover{
+  filter: brightness(1.06);
+  box-shadow: 0 14px 30px rgba(0,0,0,.16);
+}
+
 .btn:active{ transform: translateY(1px); }
 
 .btn-primary{
@@ -212,9 +263,11 @@ p{ margin: 0; }
   color: #071022;
   font-weight: 900;
 }
+
 .btn-ghost{
   background: color-mix(in srgb, var(--card2) 85%, transparent);
 }
+
 .btn-danger{
   border-color: color-mix(in srgb, var(--danger) 55%, var(--line));
   background: linear-gradient(135deg,
@@ -252,10 +305,14 @@ p{ margin: 0; }
   font-weight: 900;
   letter-spacing: .01em;
   box-shadow: 0 6px 16px rgba(0,0,0,.12);
-  transition: transform .08s ease, border-color .12s ease, background .12s ease;
+  transition: transform .08s ease, border-color .12s ease, background .12s ease, box-shadow .12s ease;
 }
-.tab:hover{ transform: translateY(-1px); }
+.tab:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(0,0,0,.14);
+}
 .tab:active{ transform: translateY(0px); }
+
 .tab-ico{
   display: inline-flex;
   width: 30px;
@@ -263,7 +320,7 @@ p{ margin: 0; }
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: rgba(255,255,255,.10);
+  background: color-mix(in srgb, var(--card2) 70%, transparent);
   border: 1px solid var(--line);
 }
 
@@ -299,13 +356,15 @@ p{ margin: 0; }
   position: relative;
   overflow: hidden;
 }
+
+/* Glow decorazioni più “wow” */
 .card::before{
   content: "";
   position: absolute;
   inset: -120px -120px auto auto;
   width: 220px;
   height: 220px;
-  background: radial-gradient(circle at 30% 30%, rgba(79,230,255,.22), transparent 60%);
+  background: radial-gradient(circle at 30% 30%, var(--glowB), transparent 60%);
   transform: rotate(15deg);
   pointer-events: none;
 }
@@ -315,7 +374,7 @@ p{ margin: 0; }
   inset: auto auto -140px -140px;
   width: 260px;
   height: 260px;
-  background: radial-gradient(circle at 60% 50%, rgba(43,108,255,.16), transparent 62%);
+  background: radial-gradient(circle at 60% 50%, var(--glowA), transparent 62%);
   pointer-events: none;
 }
 
@@ -329,6 +388,7 @@ p{ margin: 0; }
 }
 .section-title h2{ font-size: 18px; font-weight: 950; }
 .section-title h3{ font-size: 15px; font-weight: 950; }
+
 .pill{
   padding: 8px 12px;
   border-radius: 999px;
@@ -337,6 +397,7 @@ p{ margin: 0; }
   background: color-mix(in srgb, var(--primary) 16%, var(--card2));
   border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--line));
 }
+
 .chip-soft{
   padding: 6px 10px;
   border-radius: 999px;
@@ -345,6 +406,7 @@ p{ margin: 0; }
   border: 1px solid var(--line);
   background: color-mix(in srgb, var(--card2) 86%, transparent);
 }
+
 .badge-mini{
   display: inline-flex;
   min-width: 26px;
@@ -361,11 +423,13 @@ p{ margin: 0; }
 
 /* ===== Forms ===== */
 .form{ position: relative; }
+
 .grid{
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
 }
+
 .field{ position: relative; }
 .field.grow{ grid-column: span 2; }
 .field.actions{ grid-column: span 2; }
@@ -391,6 +455,7 @@ p{ margin: 0; }
   flex-wrap: wrap;
   gap: 10px;
 }
+
 .chip{
   display: inline-flex;
   align-items: center;
@@ -403,7 +468,16 @@ p{ margin: 0; }
   user-select: none;
   font-weight: 800;
   font-size: 12px;
+  transition: transform .08s ease, filter .12s ease, border-color .12s ease;
 }
+
+.chip:hover{
+  filter: brightness(1.05);
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--line));
+}
+
+.chip:active{ transform: translateY(1px); }
+
 .chip input{ accent-color: var(--primary); }
 
 /* ===== Filters / tables ===== */
@@ -411,12 +485,14 @@ p{ margin: 0; }
   margin-top: 10px;
   margin-bottom: 10px;
 }
+
 .filter-row{
   display: grid;
   grid-template-columns: 220px 1fr 1fr;
   gap: 10px;
   align-items: end;
 }
+
 .btn-row{
   display: flex;
   gap: 10px;
@@ -438,12 +514,14 @@ p{ margin: 0; }
   border-collapse: collapse;
   min-width: 920px;
 }
+
 .table th, .table td{
   padding: 10px 10px;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
   font-size: 13px;
 }
+
 .table th{
   text-transform: uppercase;
   letter-spacing: .06em;
@@ -458,6 +536,7 @@ p{ margin: 0; }
   gap: 8px;
   justify-content: flex-end;
 }
+
 .stat-pill{
   padding: 8px 10px;
   border-radius: 999px;
@@ -466,6 +545,7 @@ p{ margin: 0; }
   font-size: 12px;
   color: var(--muted);
 }
+
 .stat-pill strong{ color: var(--text); }
 
 .iconbtn{
@@ -476,10 +556,19 @@ p{ margin: 0; }
   border-radius: 12px;
   cursor: pointer;
   font-weight: 900;
+  transition: transform .08s ease, filter .12s ease, border-color .12s ease;
 }
+
+.iconbtn:hover{
+  filter: brightness(1.06);
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--line));
+}
+
+.iconbtn:active{ transform: translateY(1px); }
 
 /* ===== Cards (mobile list) ===== */
 .cards{ display: none; margin-top: 12px; }
+
 .card-row{
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -487,11 +576,13 @@ p{ margin: 0; }
   background: color-mix(in srgb, var(--card2) 88%, transparent);
   margin-bottom: 10px;
 }
+
 .card-row .top{
   display: flex;
   justify-content: space-between;
   gap: 10px;
 }
+
 .card-row .badge{
   min-width: 70px;
   text-align: center;
@@ -500,7 +591,9 @@ p{ margin: 0; }
   font-weight: 950;
   color: #071022;
   background: linear-gradient(135deg, rgba(79,230,255,.95), rgba(43,108,255,.85));
+  box-shadow: 0 10px 22px rgba(0,0,0,.14);
 }
+
 .small{ font-size: 12px; color: var(--muted); }
 .card-row strong{ color: var(--text); }
 
@@ -510,12 +603,14 @@ p{ margin: 0; }
   grid-template-columns: 1fr;
   gap: 14px;
 }
+
 .chart-card{
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--card2) 88%, transparent);
   padding: 14px;
 }
+
 .chart-head{
   display: flex;
   align-items: center;
@@ -523,7 +618,9 @@ p{ margin: 0; }
   gap: 10px;
   margin-bottom: 10px;
 }
+
 .chart-head h3{ font-size: 14px; font-weight: 950; }
+
 .chart-canvas{
   width: 100%;
   height: 340px;
@@ -543,6 +640,47 @@ p{ margin: 0; }
   margin-top: 12px;
 }
 
+/* ===== Print (evita doppie intestazioni se stampi dalla pagina principale) ===== */
+@media print{
+  body{
+    background: #ffffff !important;
+    color: #111 !important;
+  }
+
+  .app-header,
+  .tabs,
+  .btn,
+  .iconbtn,
+  .pill,
+  .chip,
+  .chip-soft,
+  .hint,
+  .footer-actions{
+    display: none !important;
+  }
+
+  .container{
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .card{
+    box-shadow: none !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+
+  .table-wrap{
+    display: block !important;
+    overflow: visible !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  .cards{ display: none !important; }
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 980px){
   .grid{ grid-template-columns: repeat(2, 1fr); }
@@ -553,9 +691,13 @@ p{ margin: 0; }
 
 @media (max-width: 720px){
   .container{ width: calc(100% - 18px); margin: 12px auto 56px auto; }
+
   .brand{ flex-wrap: wrap; gap: 10px; }
-  .brand-text{ margin-left: 0; }
-  .header-actions{ width: 100%; justify-content: space-between; }
+  .header-actions{
+    width: min(1120px, 100%);
+    justify-content: space-between;
+  }
+
   .header-field{ flex: 1; min-width: 140px; }
   .chart-canvas{ height: 280px; }
 

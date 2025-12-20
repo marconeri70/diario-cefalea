@@ -1,5 +1,5 @@
 /* sw.js — Diario Cefalea (COMPLETO, aggiornato) */
-const CACHE = "diario-cefalea-v30";
+const CACHE = "diario-cefalea-v31";
 
 const ASSETS = [
   "./",
@@ -31,7 +31,6 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // Only handle same-origin
   if (url.origin !== self.location.origin) return;
 
   event.respondWith(

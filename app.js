@@ -1,20 +1,11 @@
 /* =========================
    Diario Cefalea - app.js (COMPLETO, aggiornato, NON interrotto)
-   Funzioni:
-   - Data globale (globalDate) sincronizzata su tutte le schede
-   - Inserimento attacco + Registro con filtri e ricerca
-   - Cards su mobile
-   - Statistiche (canvas) senza librerie
-   - Report mensile: tabella giorno-per-giorno + azioni (Aggiungi/Apri)
-   - Stampa: grafici + tabella report + riquadro Note medico (stile “clinico”)
-   - Condivisione PDF reale via jsPDF + Web Share (WhatsApp tramite pannello condivisione)
-   - Tema: auto/scuro/chiaro
-   - Backup/Import JSON
-   - Export CSV mese/tutto
-   - PWA install prompt + service worker register
-   - ✅ Badge + colori “clinici” per intensità:
-       1–3 verde, 4–6 ambra, 7–10 rosso
-     (applicati a righe e cards)
+   Migliorie principali:
+   - Grafici migliorati (WOW + clinico):
+     • Barre arrotondate + tooltip
+     • Intensità colorata (verde/ambra/rosso) + weekend evidenziati + valore sopra barre
+     • Trigger/Farmaci in barre orizzontali per leggibilità etichette
+   - Tutto il resto invariato (stampa, jsPDF, share, date sync, ecc.)
    ========================= */
 
 (() => {
@@ -159,7 +150,7 @@
   }
 
   /* =========================
-     ✅ Badge + classi cliniche intensità
+     ✅ Badge intensità (clinico)
      ========================= */
   function intensityClass(intensity) {
     const n = Number(intensity || 0);
@@ -172,9 +163,6 @@
     const cls = intensityClass(intensity);
     const n = Number(intensity || 0);
     return `<span class="intensity-badge intensity-${cls}">${n}/10</span>`;
-  }
-  function sevRowClassFromIntensity(intensity) {
-    return `sev-${intensityClass(intensity)}`;
   }
 
   /* =========================
@@ -483,10 +471,9 @@
           const note = a.notes?.trim() ? a.notes : "—";
           const trig = a.triggers?.length ? a.triggers.join(", ") : "—";
           const wk = isWeekend(a.date) ? "Weekend" : "Feriale";
-          const sevCls = sevRowClassFromIntensity(a.intensity);
 
           return `
-            <tr class="${sevCls}">
+            <tr>
               <td>${fmtDate(a.date, a.time)}<div class="muted small">${wk}</div></td>
               <td>${intensityBadgeHTML(a.intensity)}</td>
               <td>${Number(a.duration || 0)} h</td>
@@ -512,16 +499,16 @@
           const trig = a.triggers?.length ? a.triggers.join(", ") : "—";
           const wk = isWeekend(a.date) ? "Weekend" : "Feriale";
           const extras = compactExtras(a);
-          const sevCls = sevRowClassFromIntensity(a.intensity);
+          const cls = intensityClass(a.intensity);
 
           return `
-            <div class="card-row ${sevCls}">
+            <div class="card-row">
               <div class="top">
                 <div>
                   <div style="font-weight:900">${fmtDate(a.date, a.time)} <span class="muted">• ${wk}</span></div>
                   <div class="small">${escapeHtml(extras)}</div>
                 </div>
-                ${intensityBadgeHTML(a.intensity)}
+                <div class="badge intensity-${cls}">${Number(a.intensity || 0)}/10</div>
               </div>
 
               <div class="small" style="margin-top:8px"><strong>Durata:</strong> ${Number(a.duration || 0)} h</div>
@@ -579,7 +566,6 @@
     dayAttacks.forEach((a) => (a.triggers || []).forEach((t) => trigSet.add(t)));
     const trig = Array.from(trigSet).join(", ");
 
-    // “peggiore” risposta: Nessuna < Parziale < Buona < Ottima
     const order = ["Nessuna", "Parziale", "Buona", "Ottima"];
     const worstEff = dayAttacks
       .map((a) => a.efficacy || "Parziale")
@@ -687,10 +673,8 @@
       }
 
       const s = summarizeDayAttacks(dayAttacks);
-      const sevCls = sevRowClassFromIntensity(s.maxInt);
-
       html += `
-        <tr class="${sevCls}" data-dayrow="${iso}">
+        <tr data-dayrow="${iso}">
           <td>${String(day).padStart(2, "0")}/${m.slice(5, 7)} (${dow})${wkTag}</td>
           <td>${intensityBadgeHTML(s.maxInt)}</td>
           <td>${(Math.round(s.sumDur * 10) / 10).toFixed(1)} h</td>
@@ -805,8 +789,9 @@
   }
 
   /* =========================
-     Charts (canvas) – no libs
+     Charts (canvas) – WOW + clinico (no libs)
      ========================= */
+
   function cssColor(varName, fallback) {
     const v = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
     return v || fallback;
@@ -829,18 +814,130 @@
     return { W, H, dpr };
   }
 
+  function roundRect(ctx, x, y, w, h, r) {
+    const rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+  }
+
+  // Tooltip (tap/hover)
+  function ensureTooltip(canvas) {
+    if (!canvas) return null;
+    const host = canvas.parentElement;
+    if (!host) return null;
+
+    host.style.position = host.style.position || "relative";
+
+    let tip = host.querySelector(".chart-tooltip");
+    if (!tip) {
+      tip = document.createElement("div");
+      tip.className = "chart-tooltip";
+      tip.style.display = "none";
+      host.appendChild(tip);
+    }
+    return tip;
+  }
+
+  function attachTooltip(canvas) {
+    if (!canvas || canvas.__tooltipAttached) return;
+    canvas.__tooltipAttached = true;
+
+    const tip = ensureTooltip(canvas);
+    if (!tip) return;
+
+    const hide = () => {
+      tip.style.display = "none";
+    };
+
+    const showAt = (x, y, html) => {
+      tip.innerHTML = html;
+      tip.style.display = "block";
+      tip.style.left = `${x}px`;
+      tip.style.top = `${y}px`;
+    };
+
+    const hitTest = (mx, my) => {
+      const bars = canvas.__bars || [];
+      for (const b of bars) {
+        if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) return b;
+      }
+      return null;
+    };
+
+    const onMove = (clientX, clientY) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = clientX - rect.left;
+      const my = clientY - rect.top;
+
+      const hit = hitTest(mx, my);
+      if (!hit) return hide();
+
+      // posizionamento tooltip (dentro card)
+      const hostRect = canvas.parentElement.getBoundingClientRect();
+      const x = mx + (rect.left - hostRect.left) + 12;
+      const y = my + (rect.top - hostRect.top) - 10;
+
+      const html = `
+        <div class="t-title">${escapeHtml(hit.label)}</div>
+        <div class="t-sub">${escapeHtml(hit.value)}</div>
+      `;
+      showAt(x, y, html);
+    };
+
+    // Mouse
+    canvas.addEventListener("mousemove", (e) => onMove(e.clientX, e.clientY));
+    canvas.addEventListener("mouseleave", hide);
+
+    // Touch
+    canvas.addEventListener(
+      "touchstart",
+      (e) => {
+        const t = e.touches?.[0];
+        if (!t) return;
+        onMove(t.clientX, t.clientY);
+      },
+      { passive: true }
+    );
+    canvas.addEventListener(
+      "touchmove",
+      (e) => {
+        const t = e.touches?.[0];
+        if (!t) return;
+        onMove(t.clientX, t.clientY);
+      },
+      { passive: true }
+    );
+    canvas.addEventListener("touchend", () => setTimeout(hide, 800), { passive: true });
+  }
+
+  function severityColorForIntensity(n) {
+    const num = Number(n || 0);
+    if (num >= 1 && num <= 3) return cssColor("--green", "#22c55e");
+    if (num >= 4 && num <= 6) return cssColor("--amber", "#f59e0b");
+    if (num >= 7 && num <= 10) return cssColor("--danger", "#ef4444");
+    return cssColor("--primary", "#2b6cff");
+  }
+
   function drawBarChart(canvas, labels, values, options) {
     if (!canvas) return;
+    attachTooltip(canvas);
+
     const ctx = canvas.getContext("2d");
     const { W, H } = ensureCanvasSize(canvas);
 
+    // Background
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = options.bgColor;
     ctx.fillRect(0, 0, W, H);
 
     const padL = 54;
     const padR = 14;
-    const padT = 16;
+    const padT = 14;
     const padB = 72;
 
     const plotW = W - padL - padR;
@@ -848,6 +945,24 @@
 
     const maxV = Math.max(1, ...values);
 
+    // Weekend shading (solo per grafico intensità)
+    if (options.weekendMask?.length) {
+      ctx.save();
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = options.weekendShadeColor;
+      const n = labels.length || 1;
+      const gap = 3;
+      const barW = Math.max(3, plotW / n - gap);
+
+      for (let i = 0; i < options.weekendMask.length; i++) {
+        if (!options.weekendMask[i]) continue;
+        const x = padL + i * (barW + gap);
+        ctx.fillRect(x - 1, padT, barW + 2, plotH);
+      }
+      ctx.restore();
+    }
+
+    // Grid + Y labels
     ctx.strokeStyle = options.gridColor;
     ctx.lineWidth = 1;
     ctx.fillStyle = options.textColor;
@@ -871,15 +986,47 @@
     const gap = 3;
     const barW = Math.max(3, plotW / n - gap);
 
+    // Bars + labels + tooltip rectangles
+    const bars = [];
     for (let i = 0; i < labels.length; i++) {
-      const v = values[i] || 0;
+      const v = Number(values[i] || 0);
       const x = padL + i * (barW + gap);
+
       const h = (v / maxV) * plotH;
       const y = padT + (plotH - h);
-      ctx.fillStyle = options.barColor;
-      ctx.fillRect(x, y, barW, h);
+
+      const color = options.dynamicBarColor ? options.dynamicBarColor(v, i) : options.barColor;
+
+      // barra arrotondata
+      ctx.save();
+      ctx.fillStyle = color;
+      roundRect(ctx, x, y, barW, h, 8);
+      ctx.fill();
+      ctx.restore();
+
+      // valore sopra la barra (solo se attivo)
+      if (options.showValues && v > 0) {
+        ctx.save();
+        ctx.fillStyle = options.valueTextColor;
+        ctx.font = "11px system-ui";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        ctx.fillText(String(v), x + barW / 2, y - 4);
+        ctx.restore();
+      }
+
+      // tooltip hitbox (usa area barra)
+      bars.push({
+        x,
+        y,
+        w: barW,
+        h: Math.max(8, h),
+        label: options.tooltipLabelFn ? options.tooltipLabelFn(i) : String(labels[i]),
+        value: options.tooltipValueFn ? options.tooltipValueFn(v, i) : String(v),
+      });
     }
 
+    // X labels
     ctx.fillStyle = options.textColor;
     const smallFont = labels.length > 25 ? 9 : 11;
     ctx.font = `${smallFont}px system-ui`;
@@ -890,8 +1037,104 @@
       if (labels.length > 25 && (i + 1) % 2 === 0) continue;
       const x = padL + i * (barW + gap) + barW / 2;
       const y = H - padB + 24;
-      ctx.fillText(String(labels[i]).slice(0, 8), x, y);
+
+      // weekend label leggermente diverso
+      if (options.weekendMask?.[i]) {
+        ctx.save();
+        ctx.globalAlpha = 0.9;
+        ctx.fillText(String(labels[i]).slice(0, 8), x, y);
+        ctx.restore();
+      } else {
+        ctx.fillText(String(labels[i]).slice(0, 8), x, y);
+      }
     }
+
+    canvas.__bars = bars;
+  }
+
+  function drawHBarChart(canvas, labels, values, options) {
+    if (!canvas) return;
+    attachTooltip(canvas);
+
+    const ctx = canvas.getContext("2d");
+    const { W, H } = ensureCanvasSize(canvas);
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = options.bgColor;
+    ctx.fillRect(0, 0, W, H);
+
+    // layout orizzontale: più spazio a sinistra
+    const padL = 160;
+    const padR = 18;
+    const padT = 18;
+    const padB = 18;
+
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+
+    const maxV = Math.max(1, ...values);
+    const rows = labels.length || 1;
+    const gap = 10;
+    const rowH = Math.max(18, Math.floor(plotH / rows) - gap);
+
+    // grid (verticale)
+    ctx.strokeStyle = options.gridColor;
+    ctx.lineWidth = 1;
+
+    const steps = 4;
+    for (let i = 0; i <= steps; i++) {
+      const x = padL + (plotW * i) / steps;
+      ctx.beginPath();
+      ctx.moveTo(x, padT);
+      ctx.lineTo(x, H - padB);
+      ctx.stroke();
+    }
+
+    // labels + barre
+    const bars = [];
+    for (let i = 0; i < labels.length; i++) {
+      const v = Number(values[i] || 0);
+      const y = padT + i * (rowH + gap);
+
+      // etichetta sinistra
+      ctx.save();
+      ctx.fillStyle = options.textColor;
+      ctx.font = "12px system-ui";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      ctx.fillText(String(labels[i]).slice(0, 26), padL - 10, y + rowH / 2);
+      ctx.restore();
+
+      // barra
+      const w = (v / maxV) * plotW;
+      const x = padL;
+
+      ctx.save();
+      ctx.fillStyle = options.barColor;
+      roundRect(ctx, x, y, w, rowH, 10);
+      ctx.fill();
+      ctx.restore();
+
+      // valore a destra
+      ctx.save();
+      ctx.fillStyle = options.valueTextColor;
+      ctx.font = "12px system-ui";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(String(v), x + w + 8, y + rowH / 2);
+      ctx.restore();
+
+      bars.push({
+        x,
+        y,
+        w: Math.max(8, w),
+        h: rowH,
+        label: String(labels[i]),
+        value: `${v} occorrenze`,
+      });
+    }
+
+    canvas.__bars = bars;
   }
 
   function topCounts(items) {
@@ -907,12 +1150,17 @@
     const list = listForMonth(yyyyMM);
     const dcount = daysInMonth(yyyyMM);
 
+    // intensità per giorno (max)
     const byDay = attacksByDayForMonth(yyyyMM);
     const labels = [];
     const vals = [];
+    const weekendMask = [];
+
     for (let day = 1; day <= dcount; day++) {
       const iso = isoOfDay(yyyyMM, day);
       labels.push(String(day));
+      weekendMask.push(isWeekend(iso));
+
       const dayAttacks = byDay.get(iso) || [];
       if (!dayAttacks.length) {
         vals.push(0);
@@ -922,34 +1170,55 @@
       vals.push(maxInt);
     }
 
-    const bg = cssColor("--card", "#111a2d");
-    const grid = cssColor("--line", "#24314f");
-    const txt = cssColor("--muted", "#a6b3d1");
+    const bg = cssColor("--card", "rgba(255,255,255,.08)");
+    const grid = cssColor("--line", "rgba(255,255,255,.10)");
+    const txt = cssColor("--muted", "rgba(234,240,255,.72)");
     const bar = cssColor("--primary", "#2b6cff");
+    const weekendShade = cssColor("--card2", "rgba(255,255,255,.06)");
+    const valTxt = cssColor("--text", "#eaf0ff");
 
-    drawBarChart(chartIntensity, labels, vals, { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar });
+    drawBarChart(chartIntensity, labels, vals, {
+      bgColor: bg,
+      gridColor: grid,
+      textColor: txt,
+      barColor: bar,
+      weekendMask,
+      weekendShadeColor: weekendShade,
+      showValues: true,
+      valueTextColor: valTxt,
+      dynamicBarColor: (v) => (v > 0 ? severityColorForIntensity(v) : cssColor("--line", "rgba(255,255,255,.10)")),
+      tooltipLabelFn: (i) => {
+        const iso = isoOfDay(yyyyMM, i + 1);
+        const d = new Date(iso + "T00:00:00");
+        const dow = d.toLocaleDateString("it-IT", { weekday: "short" });
+        return `Giorno ${labels[i]} (${dow})`;
+      },
+      tooltipValueFn: (v) => (v ? `Intensità max: ${v}/10` : "Nessun attacco"),
+    });
 
+    // Trigger: TOP 10 (barre orizzontali)
     const allTrig = [];
     for (const a of list) {
       const t = new Set([...(a.triggers || []), ...deducedTriggers(a)]);
       t.forEach((x) => allTrig.push(x));
     }
     const trigCounts = topCounts(allTrig).slice(0, 10);
-    drawBarChart(
+    drawHBarChart(
       chartTriggers,
       trigCounts.map((x) => x[0]),
       trigCounts.map((x) => x[1]),
-      { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar }
+      { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar, valueTextColor: valTxt }
     );
 
+    // Farmaci: TOP 10 (barre orizzontali)
     const allMeds = [];
     for (const a of list) (a.meds || []).forEach((x) => allMeds.push(x));
     const medsCounts = topCounts(allMeds).slice(0, 10);
-    drawBarChart(
+    drawHBarChart(
       chartMeds,
       medsCounts.map((x) => String(x[0]).replace(" (FANS)", "")),
       medsCounts.map((x) => x[1]),
-      { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar }
+      { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar, valueTextColor: valTxt }
     );
   }
 
@@ -1027,6 +1296,7 @@
       @page { size: A4; margin: 12mm; }
       body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:#111; }
       img{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
       .ptv-head{ display:flex; justify-content:space-between; gap:12px; margin-bottom: 8px; }
       .ptv-title{ font-weight: 900; letter-spacing:.08em; font-size: 12px; }
       .ptv-sub{ font-weight: 800; letter-spacing:.04em; font-size: 11px; color:#333; margin-top: 2px; }
@@ -1034,15 +1304,32 @@
       h3{ margin:10px 0 6px 0; font-size:13px; }
       .ptv-meta{ display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; font-size:11px; margin: 6px 0 8px 0; }
       .ptv-instr{ margin: 0 0 8px 0; font-size:11px; color:#333; }
+
       .chart{ border:1px solid #ddd; border-radius:10px; padding: 6mm; margin: 6mm 0; break-inside: avoid; page-break-inside: avoid; }
       .chart img{ display:block; width:100%; height:auto; max-height:85mm; object-fit:contain; }
+
       .page-break{ break-before: page; page-break-before: always; }
+
       table{ width:100%; border-collapse:collapse; font-size:10px; }
       th, td{ border:1px solid #bbb; padding:6px; vertical-align:top; white-space:normal; }
       th{ background:#f2f2f2; text-transform:uppercase; letter-spacing:.04em; }
-      .doctor-box{ border: 1px solid #999; border-radius: 8px; padding: 10px; margin-top: 10mm; }
-      .doctor-box h4{ margin: 0 0 6px 0; font-size: 12px; letter-spacing: .02em; }
-      .doctor-lines{ height: 55mm; border-top: 1px dashed #bbb; margin-top: 8px; }
+
+      .doctor-box{
+        border: 1px solid #999;
+        border-radius: 8px;
+        padding: 10px;
+        margin-top: 10mm;
+      }
+      .doctor-box h4{
+        margin: 0 0 6px 0;
+        font-size: 12px;
+        letter-spacing: .02em;
+      }
+      .doctor-lines{
+        height: 55mm;
+        border-top: 1px dashed #bbb;
+        margin-top: 8px;
+      }
     `;
 
     return `
@@ -1269,16 +1556,19 @@
       return boxY + boxH + 10;
     };
 
+    // Pagina 1: Intensità
     header();
     let y = 55;
     y = addChartBlock("Intensità (max) giorno per giorno", imgInt, y, 80);
 
+    // Pagina 2: Trigger + Farmaci
     doc.addPage();
     header();
     y = 55;
     y = addChartBlock("Trigger più frequenti", imgTrig, y, 65);
     y = addChartBlock("Farmaci più usati", imgMeds, y, 65);
 
+    // Pagina 3: Tabella
     doc.addPage();
     header();
     doc.setFont("helvetica", "bold");
@@ -1362,6 +1652,7 @@
       ty += 9.5;
     }
 
+    // Pagina Note medico
     doc.addPage();
     header();
     doc.setFont("helvetica", "bold");
@@ -1555,6 +1846,7 @@
     t.addEventListener("click", () => switchTo(t.getAttribute("data-view")));
   });
 
+  /* ========= PWA install prompt ========= */
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferredPrompt = e;

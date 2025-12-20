@@ -3,7 +3,8 @@
    - Report: azioni giorno per giorno (＋ Aggiungi / Apri)
    - Tap su giorno: porta su Diario con data pronta
    - PDF/Print: tabella pulita + grafici inclusi (stampa HTML)
-   - NOVITÀ: Genera un PDF VERO e lo condivide (WhatsApp incluso) via Share Sheet
+   - PDF vero + Condivisione (WhatsApp): Share Sheet
+   - NOVITÀ: PDF più “clinico” con riquadro NOTE MEDICO + FIRMA
    ========================= */
 
 const KEY = "cefalea_attacks_v2";
@@ -46,7 +47,7 @@ const fileImport = el("fileImport");
 const btnPrintReportTop = el("btnPrintReportTop");
 const btnPrintReportBottom = el("btnPrintReportBottom");
 
-/* NEW: share PDF buttons */
+/* share PDF buttons */
 const btnSharePDFTop = el("btnSharePDFTop");
 const btnSharePDFBottom = el("btnSharePDFBottom");
 
@@ -874,6 +875,27 @@ function buildMonthlyTableHTML_ForPrint(yyyyMM){
   `;
 }
 
+/* NEW: box clinico (HTML) */
+function buildClinicalBoxHTML(){
+  return `
+    <div class="clinical">
+      <h3>Note del medico</h3>
+      <div class="clinical-box">
+        <div class="line"></div>
+        <div class="line"></div>
+        <div class="line"></div>
+        <div class="line"></div>
+        <div class="line"></div>
+        <div class="line"></div>
+      </div>
+      <div class="sign-row">
+        <div><strong>Firma e Timbro</strong>: ________________________________</div>
+        <div><strong>Data</strong>: ____ / ____ / ______</div>
+      </div>
+    </div>
+  `;
+}
+
 function buildPrintHTML(yyyyMM){
   renderMonthlyTable();
   drawChartsFor(yyyyMM);
@@ -889,11 +911,13 @@ function buildPrintHTML(yyyyMM){
   const nome = getPatientName() || "__________________________";
 
   const tableHTMLPrint = buildMonthlyTableHTML_ForPrint(yyyyMM);
+  const clinicalHTML = buildClinicalBoxHTML();
 
   const printCSS = `
     @page { size: A4; margin: 12mm; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:#111; }
     img{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
     .ptv-head{ display:flex; justify-content:space-between; gap:12px; margin-bottom: 8px; }
     .ptv-title{ font-weight: 900; letter-spacing:.08em; font-size: 12px; }
     .ptv-sub{ font-weight: 800; letter-spacing:.04em; font-size: 11px; color:#333; margin-top: 2px; }
@@ -901,12 +925,21 @@ function buildPrintHTML(yyyyMM){
     h3{ margin:10px 0 6px 0; font-size:13px; }
     .ptv-meta{ display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; font-size:11px; margin: 6px 0 8px 0; }
     .ptv-instr{ margin: 0 0 8px 0; font-size:11px; color:#333; }
+
     .chart{ border:1px solid #ddd; border-radius:10px; padding: 6mm; margin: 6mm 0; break-inside: avoid; page-break-inside: avoid; }
     .chart img{ display:block; width:100%; height:auto; max-height:85mm; object-fit:contain; }
+
     .page-break{ break-before: page; page-break-before: always; }
+
     table{ width:100%; border-collapse:collapse; font-size:10px; }
     th, td{ border:1px solid #bbb; padding:6px; vertical-align:top; white-space:normal; }
     th{ background:#f2f2f2; text-transform:uppercase; letter-spacing:.04em; }
+
+    /* Clinico */
+    .clinical{ margin-top: 10mm; }
+    .clinical-box{ border:1px solid #777; border-radius:8px; padding:8mm; height: 85mm; }
+    .clinical-box .line{ height: 12mm; border-bottom: 1px solid #d0d0d0; }
+    .sign-row{ display:flex; justify-content:space-between; gap:10mm; margin-top: 8mm; font-size: 11px; }
   `;
 
   return `
@@ -959,6 +992,8 @@ function buildPrintHTML(yyyyMM){
 
         <h3>Tabella giornaliera</h3>
         ${tableHTMLPrint}
+
+        ${clinicalHTML}
       </body>
     </html>
   `;
@@ -1013,7 +1048,7 @@ async function printReport(){
 }
 
 /* =========================
-   NEW: PDF vero + Condivisione (WhatsApp)
+   PDF vero + Condivisione (WhatsApp)
    ========================= */
 
 function buildMonthlyTableRowsForPDF(yyyyMM){
@@ -1071,6 +1106,52 @@ function ensurePDFLib(){
   return jsPDF;
 }
 
+/* NEW: disegna riquadro “Note del medico” in jsPDF */
+function addClinicalPagePDF(doc){
+  const margin = 12;
+  const pageW = 210;
+  const pageH = 297;
+  const contentW = pageW - margin*2;
+
+  doc.addPage();
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.text("Note del medico", margin, margin);
+
+  // box grande
+  const boxY = margin + 8;
+  const boxH = 120;
+  doc.setDrawColor(90);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(margin, boxY, contentW, boxH, 3, 3);
+
+  // righe leggere
+  doc.setDrawColor(200);
+  const lines = 8;
+  for (let i=1;i<=lines;i++){
+    const y = boxY + (boxH/lines)*i;
+    doc.line(margin + 4, y, margin + contentW - 4, y);
+  }
+
+  // firma + data
+  const signY = boxY + boxH + 18;
+  doc.setDrawColor(90);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(11);
+
+  doc.text("Firma e Timbro:", margin, signY);
+  doc.line(margin + 32, signY + 1, margin + 110, signY + 1);
+
+  doc.text("Data:", margin + 128, signY);
+  doc.line(margin + 142, signY + 1, margin + contentW, signY + 1);
+
+  // footer mini
+  doc.setTextColor(120);
+  doc.setFontSize(9);
+  doc.text("Sezione riservata al Centro Cefalee", margin, pageH - margin);
+  doc.setTextColor(20);
+}
+
 async function generateReportPDFBlob(yyyyMM){
   const jsPDF = ensurePDFLib();
   if (!jsPDF) throw new Error("Libreria PDF non caricata. Ricarica la pagina e riprova.");
@@ -1086,7 +1167,6 @@ async function generateReportPDFBlob(yyyyMM){
 
   const margin = 12;
   const pageW = 210;
-  const pageH = 297;
   const contentW = pageW - margin*2;
 
   const title = `Report Cefalea – ${label}`;
@@ -1102,7 +1182,6 @@ async function generateReportPDFBlob(yyyyMM){
   let y = margin;
 
   if (ptvLogo){
-    // logo a sinistra
     doc.addImage(ptvLogo, "PNG", margin, y, 18, 18);
     doc.text("FONDAZIONE PTV", margin + 22, y + 7);
     doc.setFontSize(10);
@@ -1216,7 +1295,6 @@ async function generateReportPDFBlob(yyyyMM){
 
   const tableRows = buildMonthlyTableRowsForPDF(yyyyMM);
 
-  // AutoTable (plugin caricato da CDN)
   doc.autoTable({
     startY: margin + 6,
     head: [[ "Giorno", "Intensità", "Durata", "Farmaci", "Risposta", "Note / Trigger" ]],
@@ -1245,6 +1323,9 @@ async function generateReportPDFBlob(yyyyMM){
     margin: { left: margin, right: margin }
   });
 
+  /* NEW: pagina clinica Note medico + firma */
+  addClinicalPagePDF(doc);
+
   const blob = doc.output("blob");
   return blob;
 }
@@ -1253,7 +1334,6 @@ async function shareReportPDF(){
   const m = (printMonth?.value || monthNow()).trim();
 
   try{
-    // piccolo feedback
     const oldTextTop = btnSharePDFTop?.textContent;
     const oldTextBottom = btnSharePDFBottom?.textContent;
     if (btnSharePDFTop) btnSharePDFTop.textContent = "⏳ Preparazione PDF...";
@@ -1271,9 +1351,7 @@ async function shareReportPDF(){
         text: `Report mensile (${monthLabel(m)})`,
         files: [file]
       });
-      // dopo la condivisione, tutto ok
     } else {
-      // fallback: download
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -1399,7 +1477,6 @@ btnPrintReportTop?.addEventListener("click", () => {
 });
 btnPrintReportBottom?.addEventListener("click", () => printReport());
 
-/* NEW: share PDF */
 btnSharePDFTop?.addEventListener("click", () => shareReportPDF());
 btnSharePDFBottom?.addEventListener("click", () => shareReportPDF());
 

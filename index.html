@@ -1,386 +1,512 @@
-<!doctype html>
-<html lang="it">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#0b1220" />
-  <title>Diario Cefalea</title>
+/* =========================
+   Diario Cefalea — style.css (COMPLETO, aggiornato)
+   - Tabs con icone + colori (intuitivo)
+   - Card più cromatiche e contrastate
+   - Mobile: più pulito, touch-friendly
+   ========================= */
 
-  <link rel="manifest" href="./manifest.json" />
-  <link rel="icon" href="./icons/icon-192.png" />
-  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body{
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
-  <link rel="stylesheet" href="./style.css" />
-</head>
+/* -------- Theme tokens -------- */
+:root{
+  --radius: 18px;
+  --radius-sm: 14px;
+  --shadow: 0 16px 40px rgba(0,0,0,.22);
+  --shadow-soft: 0 10px 24px rgba(0,0,0,.18);
+  --ring: 0 0 0 4px rgba(86,154,255,.28);
 
-<body>
+  --bg0: #070b14;
+  --bg1: #0b1220;
 
-  <!-- HEADER -->
-  <header class="app-header">
-    <div class="header-inner">
-      <div class="brand">
-        <div class="logo" aria-hidden="true">🧠</div>
-        <div class="brand-text">
-          <h1>Diario Cefalea</h1>
-          <div class="subtitle">Registro attacchi • Report mensile • Grafici • Offline</div>
-        </div>
-      </div>
+  --text: #eaf1ff;
+  --muted: #a9b7d6;
 
-      <div class="header-actions">
-        <button id="btnInstall" class="btn btn-ghost" hidden>📲 Installa</button>
-      </div>
-    </div>
+  --card: rgba(255,255,255,.06);
+  --card2: rgba(255,255,255,.08);
+  --line: rgba(255,255,255,.10);
 
-    <!-- TABS -->
-    <nav class="tabs" aria-label="Navigazione">
-      <button class="tab active" data-view="diario" data-accent="blue" type="button">
-        <span class="tab-ico" aria-hidden="true">📝</span>
-        <span class="tab-label">Diario</span>
-      </button>
+  --primary: #2b6cff;
+  --cyan: #67d1ff;
+  --amber: #ffbe3d;
+  --violet:#b46cff;
+  --red: #ff4d6d;
 
-      <button class="tab" data-view="statistiche" data-accent="cyan" type="button">
-        <span class="tab-ico" aria-hidden="true">📊</span>
-        <span class="tab-label">Statistiche</span>
-      </button>
+  --btn: linear-gradient(135deg, #2b6cff 0%, #67d1ff 100%);
+  --btnText: #081022;
 
-      <button class="tab" data-view="report" data-accent="amber" type="button">
-        <span class="tab-ico" aria-hidden="true">🏥</span>
-        <span class="tab-label">Report PDF</span>
-      </button>
+  --headerGrad: radial-gradient(1200px 600px at 15% -10%, rgba(43,108,255,.55), transparent 60%),
+                radial-gradient(900px 500px at 90% 0%, rgba(103,209,255,.28), transparent 55%),
+                linear-gradient(180deg, #0a1020, #070b14);
 
-      <button class="tab" data-view="impostazioni" data-accent="violet" type="button">
-        <span class="tab-ico" aria-hidden="true">⚙️</span>
-        <span class="tab-label">Impostazioni</span>
-      </button>
-    </nav>
-  </header>
+  --bgGrad: radial-gradient(1000px 650px at 20% -15%, rgba(43,108,255,.35), transparent 55%),
+            radial-gradient(900px 550px at 85% 10%, rgba(255,77,109,.18), transparent 55%),
+            radial-gradient(900px 650px at 30% 110%, rgba(39,208,125,.16), transparent 60%),
+            linear-gradient(180deg, var(--bg1), var(--bg0));
+}
 
-  <main class="container">
+/* Auto theme (segue sistema) */
+:root[data-theme="auto"]{}
+@media (prefers-color-scheme: light){
+  :root[data-theme="auto"]{
+    --bg0:#f5f7ff;
+    --bg1:#f2f4ff;
+    --text:#0c1630;
+    --muted:#4f6286;
+    --card: rgba(255,255,255,.85);
+    --card2: rgba(255,255,255,.92);
+    --line: rgba(15,30,60,.12);
+    --shadow: 0 16px 40px rgba(10,20,40,.15);
+    --shadow-soft: 0 10px 24px rgba(10,20,40,.12);
+    --btnText: #04102a;
 
-    <!-- =======================
-         VIEW: DIARIO
-         ======================= -->
-    <section id="view-diario" class="view active">
+    --headerGrad: radial-gradient(1000px 520px at 15% -10%, rgba(43,108,255,.22), transparent 60%),
+                  radial-gradient(900px 520px at 90% 0%, rgba(103,209,255,.18), transparent 55%),
+                  linear-gradient(180deg, #ffffff, #f5f7ff);
 
-      <!-- Intestazione -->
-      <div class="card" id="card-intestazione">
-        <div class="section-title">
-          <h2>Dati intestazione</h2>
-          <span class="pill pill-blue">Per il PDF</span>
-        </div>
+    --bgGrad: radial-gradient(1000px 650px at 20% -15%, rgba(43,108,255,.16), transparent 55%),
+              radial-gradient(900px 550px at 85% 10%, rgba(255,77,109,.10), transparent 55%),
+              radial-gradient(900px 650px at 30% 110%, rgba(39,208,125,.10), transparent 60%),
+              linear-gradient(180deg, #f2f4ff, #f5f7ff);
+  }
+}
+:root[data-theme="dark"]{}
+:root[data-theme="light"]{
+  --bg0:#f5f7ff;
+  --bg1:#f2f4ff;
+  --text:#0c1630;
+  --muted:#4f6286;
+  --card: rgba(255,255,255,.85);
+  --card2: rgba(255,255,255,.92);
+  --line: rgba(15,30,60,.12);
+  --shadow: 0 16px 40px rgba(10,20,40,.15);
+  --shadow-soft: 0 10px 24px rgba(10,20,40,.12);
+  --btnText: #04102a;
 
-        <label for="patientName">Nome e Cognome (chi compila il diario)</label>
-        <input id="patientName" type="text" placeholder="Es. Mario Rossi" />
-        <div class="helper">Questo nome verrà riportato nell’intestazione della stampa PDF.</div>
-      </div>
+  --headerGrad: radial-gradient(1000px 520px at 15% -10%, rgba(43,108,255,.22), transparent 60%),
+                radial-gradient(900px 520px at 90% 0%, rgba(103,209,255,.18), transparent 55%),
+                linear-gradient(180deg, #ffffff, #f5f7ff);
 
-      <!-- Nuovo attacco -->
-      <div class="card" id="card-form">
-        <div class="section-title">
-          <h2>Nuovo attacco</h2>
-          <span class="pill pill-red">Inserimento rapido</span>
-        </div>
+  --bgGrad: radial-gradient(1000px 650px at 20% -15%, rgba(43,108,255,.16), transparent 55%),
+            radial-gradient(900px 550px at 85% 10%, rgba(255,77,109,.10), transparent 55%),
+            radial-gradient(900px 650px at 30% 110%, rgba(39,208,125,.10), transparent 60%),
+            linear-gradient(180deg, #f2f4ff, #f5f7ff);
+}
 
-        <form id="attackForm">
-          <div class="field-row-3">
-            <div>
-              <label for="date">Data</label>
-              <input id="date" type="date" />
-            </div>
+/* -------- Base -------- */
+body{
+  background: var(--bgGrad);
+  color: var(--text);
+}
+a{ color: inherit; text-decoration: none; }
+.small{ font-size: 12px; }
+.muted{ color: var(--muted); }
+.helper{ font-size: 12px; color: var(--muted); margin-top: 6px; }
 
-            <div>
-              <label for="time">Ora (opzionale)</label>
-              <input id="time" type="time" />
-            </div>
+/* -------- Layout -------- */
+.container{
+  width: min(1100px, calc(100% - 24px));
+  margin: 16px auto 48px auto;
+}
 
-            <div>
-              <label for="efficacy">Efficacia</label>
-              <select id="efficacy">
-                <option>Parziale</option>
-                <option>Buona</option>
-                <option>Ottima</option>
-                <option>Nessuna</option>
-              </select>
-            </div>
-          </div>
+/* -------- Header -------- */
+.app-header{
+  background: var(--headerGrad);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  backdrop-filter: blur(10px);
+}
+.header-inner{
+  width: min(1100px, calc(100% - 24px));
+  margin: 0 auto;
+  padding: 14px 0 10px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.brand{ display:flex; align-items:center; gap:12px; min-width:0; }
+.logo{
+  width: 42px; height: 42px;
+  border-radius: 14px;
+  background: var(--btn);
+  box-shadow: var(--shadow-soft);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color: var(--btnText);
+  font-weight: 900;
+}
+.brand h1{ margin:0; font-size: 18px; letter-spacing: .02em; }
+.subtitle{ font-size: 12px; color: var(--muted); margin-top: 2px; }
+.header-actions{ display:flex; gap:10px; align-items:center; flex-wrap: wrap; justify-content:flex-end; }
 
-          <div class="field-row">
-            <div>
-              <label for="intensity">Intensità (1–10)</label>
-              <input id="intensity" type="number" min="1" max="10" step="1" placeholder="Es. 7" />
-            </div>
+/* -------- Tabs -------- */
+.tabs{
+  width: min(1100px, calc(100% - 24px));
+  margin: 0 auto;
+  padding: 10px 0 12px 0;
+  display:flex;
+  gap:10px;
+  overflow-x:auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar{ display:none; }
 
-            <div>
-              <label for="duration">Durata (ore)</label>
-              <input id="duration" type="number" min="0.5" step="0.5" placeholder="Es. 3" />
-            </div>
-          </div>
+.tab{
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.05);
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-weight: 900;
+  cursor: pointer;
+  user-select: none;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  transition: transform .08s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease;
+  white-space: nowrap;
+}
+.tab:hover{ transform: translateY(-1px); background: rgba(255,255,255,.08); }
+.tab-ico{
+  width: 30px; height: 30px;
+  border-radius: 999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size: 16px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+}
 
-          <div class="field-row">
-            <div>
-              <label for="meds">Farmaci usati (multi-selezione)</label>
-              <select id="meds" multiple size="7">
-                <option value="Relpax (eletriptan)">Relpax (eletriptan)</option>
-                <option value="Ibuprofene (FANS)">Ibuprofene (FANS)</option>
-                <option value="Naproxene (FANS)">Naproxene (FANS)</option>
-                <option value="Ketoprofene (FANS)">Ketoprofene (FANS)</option>
-                <option value="Diclofenac (FANS)">Diclofenac (FANS)</option>
-                <option value="Paracetamolo">Paracetamolo</option>
-                <option value="Okitask (FANS)">Okitask (FANS)</option>
-              </select>
-              <div class="helper">Puoi selezionare più voci (tieni premuto). Se non hai preso nulla, lascia vuoto.</div>
-            </div>
+/* Accenti per tab */
+.tab[data-accent="blue"]{ --accent: var(--primary); }
+.tab[data-accent="cyan"]{ --accent: var(--cyan); }
+.tab[data-accent="amber"]{ --accent: var(--amber); }
+.tab[data-accent="violet"]{ --accent: var(--violet); }
 
-            <div>
-              <label>Trigger (seleziona)</label>
-              <div id="triggerChips">
-                <label><input type="checkbox" value="Stress" /> Stress</label>
-                <label><input type="checkbox" value="Poco sonno" /> Poco sonno</label>
-                <label><input type="checkbox" value="Meteo" /> Meteo</label>
-                <label><input type="checkbox" value="Alimenti" /> Alimenti</label>
-                <label><input type="checkbox" value="Ciclo" /> Ciclo</label>
-                <label><input type="checkbox" value="Odori forti" /> Odori forti</label>
-              </div>
+.tab .tab-ico{
+  background: linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+}
+.tab.active{
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--accent) 22%, transparent),
+    rgba(255,255,255,.04)
+  );
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.tab.active .tab-ico{
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--accent) 45%, transparent),
+    color-mix(in srgb, var(--accent) 18%, transparent)
+  );
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
 
-              <div class="hr"></div>
+/* -------- Views -------- */
+.view{ display:none; }
+.view.active{ display:block; }
 
-              <label for="stress">Stress (0–10): <span id="stressVal" class="pill pill-cyan">0</span></label>
-              <input id="stress" type="range" min="0" max="10" step="1" value="0" />
+/* -------- Cards -------- */
+.card{
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--card2), var(--card));
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  padding: 16px;
+  margin: 14px 0;
+  position: relative;
+  overflow: hidden;
+}
+.card::before{
+  content:"";
+  position:absolute;
+  inset:-1px;
+  background:
+    radial-gradient(600px 260px at 15% 0%, rgba(43,108,255,.18), transparent 60%),
+    radial-gradient(420px 240px at 90% 20%, rgba(255,77,109,.12), transparent 55%);
+  opacity: .75;
+  pointer-events: none;
+}
+.card > *{ position: relative; }
+.section-title{
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.card h2{ margin: 0; font-size: 18px; letter-spacing: .01em; }
+.card h3{ margin: 0 0 10px 0; font-size: 14px; color: var(--muted); font-weight: 900; }
 
-              <div class="field-row">
-                <div>
-                  <label for="sleepHours">Ore sonno</label>
-                  <input id="sleepHours" type="number" min="0" step="0.5" placeholder="Es. 5.5" />
-                </div>
-                <div>
-                  <label for="weather">Meteo (opzionale)</label>
-                  <input id="weather" type="text" placeholder="Es. pioggia, caldo, vento..." />
-                </div>
-              </div>
+/* Sotto-card in statistiche */
+.card-grid{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+.card-sub{
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 12px;
+  background: rgba(255,255,255,.04);
+}
 
-              <label for="foods">Alimenti (opzionale)</label>
-              <input id="foods" type="text" placeholder="Es. cioccolato, formaggi, vino..." />
-            </div>
-          </div>
+/* -------- Pills -------- */
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-weight: 900;
+  font-size: 12px;
+}
+.pill-blue{ background: rgba(43,108,255,.16); border-color: rgba(43,108,255,.26); }
+.pill-cyan{ background: rgba(103,209,255,.14); border-color: rgba(103,209,255,.24); }
+.pill-amber{ background: rgba(255,190,61,.14); border-color: rgba(255,190,61,.24); }
+.pill-violet{ background: rgba(180,108,255,.14); border-color: rgba(180,108,255,.24); }
+.pill-red{ background: rgba(255,77,109,.14); border-color: rgba(255,77,109,.24); }
 
-          <label for="notes">Note (opzionale)</label>
-          <textarea id="notes" placeholder="Es. nausea, fotofobia, riposo al buio..."></textarea>
+/* -------- Form -------- */
+label{ display:block; font-weight: 900; margin: 10px 0 6px; }
 
-          <div class="footer-actions">
-            <button type="submit" class="btn btn-primary">✅ Salva</button>
-            <button id="btnClear" type="button" class="btn btn-ghost">🧹 Svuota campi</button>
-          </div>
-        </form>
-      </div>
+input, select, textarea{
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(0,0,0,.08);
+  color: var(--text);
+  outline: none;
+  transition: box-shadow .2s ease, border-color .2s ease;
+}
+:root[data-theme="light"] input,
+:root[data-theme="light"] select,
+:root[data-theme="light"] textarea{
+  background: rgba(255,255,255,.8);
+}
 
-      <!-- Registro -->
-      <div class="card" id="card-registro">
-        <div class="section-title">
-          <h2>Registro</h2>
-          <span class="pill pill-amber">Filtri & riepilogo</span>
-        </div>
+input:focus, select:focus, textarea:focus{
+  border-color: rgba(103,209,255,.55);
+  box-shadow: var(--ring);
+}
+textarea{ min-height: 92px; resize: vertical; }
 
-        <div class="filters">
-          <div style="min-width:220px">
-            <label for="month">Mese</label>
-            <input id="month" type="month" />
-          </div>
+.field-row{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.field-row-3{
+  display:grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
 
-          <div style="min-width:180px">
-            <label for="onlyWeekend">Solo weekend</label>
-            <select id="onlyWeekend">
-              <option value="all">Tutti</option>
-              <option value="weekend">Weekend</option>
-              <option value="weekday">Feriali</option>
-            </select>
-          </div>
+/* Trigger chips */
+#triggerChips{
+  display:flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+}
+#triggerChips label{
+  margin: 0;
+  font-weight: 900;
+  display:inline-flex;
+  align-items:center;
+  gap: 8px;
+  padding: 9px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: linear-gradient(135deg, rgba(43,108,255,.14), rgba(103,209,255,.08));
+  cursor: pointer;
+}
+#triggerChips input{ width:auto; }
 
-          <div style="flex:1; min-width:240px">
-            <label for="q">Ricerca note/farmaci</label>
-            <input id="q" type="text" placeholder="Relpax, nausea, FANS..." />
-          </div>
-        </div>
+/* Range */
+input[type="range"]{
+  padding: 0;
+  height: 40px;
+  background: transparent;
+  border: none;
+}
+input[type="range"]::-webkit-slider-runnable-track{
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(43,108,255,.35), rgba(103,209,255,.35));
+  border: 1px solid var(--line);
+}
+input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  margin-top: -7px;
+  background: var(--btn);
+  border: 1px solid rgba(255,255,255,.35);
+  box-shadow: 0 10px 18px rgba(43,108,255,.25);
+}
 
-        <div class="hr"></div>
+/* -------- Buttons -------- */
+.btn{
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-weight: 1000;
+  cursor: pointer;
+  transition: transform .08s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap: 10px;
+}
+.btn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.10); }
+.btn:active{ transform: translateY(0); }
 
-        <div id="stats" class="stats-row"></div>
+.btn-primary{
+  background: var(--btn);
+  color: var(--btnText);
+  border-color: rgba(103,209,255,.35);
+  box-shadow: 0 14px 26px rgba(43,108,255,.25);
+}
+.btn-primary:hover{ box-shadow: 0 18px 34px rgba(43,108,255,.30); }
 
-        <div class="hr"></div>
+.btn-ghost{ background: rgba(255,255,255,.03); }
 
-        <!-- Table desktop -->
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Intensità</th>
-                <th>Durata</th>
-                <th>Farmaci</th>
-                <th>Efficacia</th>
-                <th>Trigger</th>
-                <th>Note</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="rows"></tbody>
-          </table>
-        </div>
+.btn-danger{
+  background: linear-gradient(135deg, rgba(255,77,109,.28), rgba(255,77,109,.14));
+  border-color: rgba(255,77,109,.35);
+}
 
-        <!-- Cards mobile -->
-        <div id="cards"></div>
+.iconbtn{
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.05);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 12px;
+  font-weight: 1000;
+  cursor:pointer;
+}
+.iconbtn:hover{ background: rgba(255,255,255,.10); }
 
-        <div class="hr"></div>
+.footer-actions, .filters{
+  display:flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
 
-        <div class="footer-actions">
-          <button id="btnExportMonth" type="button" class="btn btn-primary">📤 Esporta mese (CSV)</button>
-          <button id="btnExportAll" type="button" class="btn">📦 Esporta tutto (CSV)</button>
-          <button id="btnDeleteAll" type="button" class="btn btn-danger">🗑️ Cancella tutto</button>
-        </div>
-      </div>
-    </section>
+.hr{
+  height: 1px;
+  background: var(--line);
+  margin: 12px 0;
+}
 
-    <!-- =======================
-         VIEW: STATISTICHE
-         ======================= -->
-    <section id="view-statistiche" class="view">
-      <div class="card">
-        <div class="section-title">
-          <h2>Statistiche mensili</h2>
-          <span class="pill pill-cyan">Grafici leggibili</span>
-        </div>
+/* -------- Stats row -------- */
+.stats-row{
+  display:flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.stat-pill{
+  display:inline-flex;
+  align-items:center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: linear-gradient(135deg, rgba(43,108,255,.14), rgba(103,209,255,.08));
+  font-weight: 900;
+}
 
-        <div class="filters">
-          <div style="min-width:220px">
-            <label for="statsMonth">Mese</label>
-            <input id="statsMonth" type="month" />
-          </div>
+/* -------- Tables + scroll -------- */
+.table-wrap{
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.04);
+}
+table{
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 920px;
+}
+th, td{
+  border-bottom: 1px solid var(--line);
+  padding: 12px 10px;
+  vertical-align: top;
+}
+th{
+  text-align: left;
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  background: rgba(255,255,255,.03);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+tr:hover td{ background: rgba(255,255,255,.03); }
 
-          <div style="display:flex; align-items:flex-end">
-            <button id="btnRefreshCharts" type="button" class="btn btn-primary">🔄 Aggiorna grafici</button>
-          </div>
-        </div>
+/* -------- Mobile cards list -------- */
+#cards{ display:none; }
 
-        <div class="hr"></div>
+/* -------- Charts -------- */
+.canvas-wrap{
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.03);
+  border-radius: 18px;
+  padding: 12px;
+  overflow: hidden;
+}
+canvas{
+  width: 100%;
+  height: 360px;
+  display:block;
+  border-radius: 14px;
+}
 
-        <div class="card-grid">
-          <div class="card-sub">
-            <h3>Intensità (max) giorno per giorno</h3>
-            <div class="canvas-wrap">
-              <canvas id="chartIntensity"></canvas>
-            </div>
-            <div class="helper">Barre: intensità massima del giorno.</div>
-          </div>
+/* -------- Responsive -------- */
+@media (max-width: 980px){
+  .header-inner{ padding: 12px 0 8px; }
+  .brand h1{ font-size: 17px; }
+  canvas{ height: 330px; }
+}
 
-          <div class="card-sub">
-            <h3>Trigger più frequenti</h3>
-            <div class="canvas-wrap">
-              <canvas id="chartTriggers"></canvas>
-            </div>
-            <div class="helper">Conteggio dei trigger selezionati o dedotti (stress alto / poco sonno ecc.).</div>
-          </div>
+@media (max-width: 860px){
+  .field-row, .field-row-3{ grid-template-columns: 1fr; }
 
-          <div class="card-sub">
-            <h3>Farmaci più usati</h3>
-            <div class="canvas-wrap">
-              <canvas id="chartMeds"></canvas>
-            </div>
-            <div class="helper">Frequenza d’uso dei farmaci inseriti negli attacchi.</div>
-          </div>
-        </div>
-      </div>
-    </section>
+  /* su mobile: meglio cards invece della tabella */
+  .table-wrap{ display:none; }
+  #cards{ display:block; }
+  #rows{ display:none; }
 
-    <!-- =======================
-         VIEW: REPORT
-         ======================= -->
-    <section id="view-report" class="view">
-      <div class="card">
-        <div class="section-title">
-          <h2>Report PDF</h2>
-          <span class="pill pill-amber">Centro Cefalee</span>
-        </div>
+  canvas{ height: 320px; }
+}
 
-        <div class="filters">
-          <div style="min-width:220px">
-            <label for="printMonth">Scegli mese</label>
-            <input id="printMonth" type="month" />
-          </div>
-
-          <div style="display:flex; align-items:flex-end">
-            <button id="btnPrintReportTop" type="button" class="btn btn-primary">🖨️ Genera PDF / Stampa</button>
-          </div>
-        </div>
-
-        <div class="hr"></div>
-
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Giorno</th>
-                <th>Intensità</th>
-                <th>Durata</th>
-                <th>Farmaci</th>
-                <th>Risposta</th>
-                <th>Note / Trigger</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="monthlyRows"></tbody>
-          </table>
-        </div>
-
-        <div class="hr"></div>
-
-        <div class="footer-actions">
-          <button id="btnPrintReportBottom" type="button" class="btn btn-primary">🖨️ Genera PDF / Stampa</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- =======================
-         VIEW: IMPOSTAZIONI
-         ======================= -->
-    <section id="view-impostazioni" class="view">
-      <div class="card">
-        <div class="section-title">
-          <h2>Impostazioni</h2>
-          <span class="pill pill-violet">Aspetto & dati</span>
-        </div>
-
-        <label for="themeSelect">Tema</label>
-        <select id="themeSelect">
-          <option value="auto">Auto (sistema)</option>
-          <option value="dark">Scuro</option>
-          <option value="light">Chiaro</option>
-        </select>
-        <div class="helper">Puoi scegliere un tema fisso oppure seguire il tema del telefono.</div>
-
-        <div class="hr"></div>
-
-        <div class="footer-actions">
-          <button id="btnBackup" type="button" class="btn">💾 Backup JSON</button>
-          <label class="btn btn-ghost" for="fileImport" style="cursor:pointer;">
-            📥 Importa JSON
-          </label>
-          <input id="fileImport" type="file" accept="application/json" style="display:none" />
-        </div>
-
-        <div class="helper" style="margin-top:10px;">
-          Suggerimento: fai un backup prima di aggiornare il sito o cambiare dispositivo.
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>Uso consigliato</h2>
-        <div class="helper">
-          Registra ogni attacco con intensità, durata, farmaci e trigger: i grafici e il report mensile aiutano molto il medico a valutare l’andamento.
-        </div>
-      </div>
-    </section>
-
-  </main>
-
-  <script src="./app.js"></script>
-</body>
-</html>
+@media (max-width: 420px){
+  .logo{ width: 38px; height: 38px; }
+  .tab{ padding: 9px 12px; }
+  .card{ padding: 14px; }
+  canvas{ height: 300px; }
+}

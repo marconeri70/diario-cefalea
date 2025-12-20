@@ -1,5 +1,5 @@
 /* sw.js — Diario Cefalea (COMPLETO, aggiornato) */
-const CACHE = "diario-cefalea-v33";
+const CACHE = "diario-cefalea-v34";
 
 const ASSETS = [
   "./",

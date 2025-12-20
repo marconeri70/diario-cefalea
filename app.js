@@ -12,7 +12,9 @@
    - Backup/Import JSON
    - Export CSV mese/tutto
    - PWA install prompt + service worker register
-   - ✅ Badge intensità “clinico” (1–3 verde, 4–6 ambra, 7–10 rosso)
+   - ✅ Badge + colori “clinici” per intensità:
+       1–3 verde, 4–6 ambra, 7–10 rosso
+     (applicati a righe e cards)
    ========================= */
 
 (() => {
@@ -157,7 +159,7 @@
   }
 
   /* =========================
-     ✅ Badge intensità (clinico)
+     ✅ Badge + classi cliniche intensità
      ========================= */
   function intensityClass(intensity) {
     const n = Number(intensity || 0);
@@ -170,6 +172,9 @@
     const cls = intensityClass(intensity);
     const n = Number(intensity || 0);
     return `<span class="intensity-badge intensity-${cls}">${n}/10</span>`;
+  }
+  function sevRowClassFromIntensity(intensity) {
+    return `sev-${intensityClass(intensity)}`;
   }
 
   /* =========================
@@ -478,9 +483,10 @@
           const note = a.notes?.trim() ? a.notes : "—";
           const trig = a.triggers?.length ? a.triggers.join(", ") : "—";
           const wk = isWeekend(a.date) ? "Weekend" : "Feriale";
+          const sevCls = sevRowClassFromIntensity(a.intensity);
 
           return `
-            <tr>
+            <tr class="${sevCls}">
               <td>${fmtDate(a.date, a.time)}<div class="muted small">${wk}</div></td>
               <td>${intensityBadgeHTML(a.intensity)}</td>
               <td>${Number(a.duration || 0)} h</td>
@@ -506,16 +512,16 @@
           const trig = a.triggers?.length ? a.triggers.join(", ") : "—";
           const wk = isWeekend(a.date) ? "Weekend" : "Feriale";
           const extras = compactExtras(a);
-          const cls = intensityClass(a.intensity);
+          const sevCls = sevRowClassFromIntensity(a.intensity);
 
           return `
-            <div class="card-row">
+            <div class="card-row ${sevCls}">
               <div class="top">
                 <div>
                   <div style="font-weight:900">${fmtDate(a.date, a.time)} <span class="muted">• ${wk}</span></div>
                   <div class="small">${escapeHtml(extras)}</div>
                 </div>
-                <div class="badge intensity-${cls}">${Number(a.intensity || 0)}/10</div>
+                ${intensityBadgeHTML(a.intensity)}
               </div>
 
               <div class="small" style="margin-top:8px"><strong>Durata:</strong> ${Number(a.duration || 0)} h</div>
@@ -681,8 +687,10 @@
       }
 
       const s = summarizeDayAttacks(dayAttacks);
+      const sevCls = sevRowClassFromIntensity(s.maxInt);
+
       html += `
-        <tr data-dayrow="${iso}">
+        <tr class="${sevCls}" data-dayrow="${iso}">
           <td>${String(day).padStart(2, "0")}/${m.slice(5, 7)} (${dow})${wkTag}</td>
           <td>${intensityBadgeHTML(s.maxInt)}</td>
           <td>${(Math.round(s.sumDur * 10) / 10).toFixed(1)} h</td>
@@ -840,7 +848,6 @@
 
     const maxV = Math.max(1, ...values);
 
-    // Grid + Y labels
     ctx.strokeStyle = options.gridColor;
     ctx.lineWidth = 1;
     ctx.fillStyle = options.textColor;
@@ -864,7 +871,6 @@
     const gap = 3;
     const barW = Math.max(3, plotW / n - gap);
 
-    // Bars
     for (let i = 0; i < labels.length; i++) {
       const v = values[i] || 0;
       const x = padL + i * (barW + gap);
@@ -874,7 +880,6 @@
       ctx.fillRect(x, y, barW, h);
     }
 
-    // X labels
     ctx.fillStyle = options.textColor;
     const smallFont = labels.length > 25 ? 9 : 11;
     ctx.font = `${smallFont}px system-ui`;
@@ -1003,7 +1008,6 @@
   }
 
   function buildPrintHTML(yyyyMM) {
-    // Forza render e grafici aggiornati
     renderMonthlyTable();
     drawChartsFor(yyyyMM);
 
@@ -1023,7 +1027,6 @@
       @page { size: A4; margin: 12mm; }
       body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:#111; }
       img{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-
       .ptv-head{ display:flex; justify-content:space-between; gap:12px; margin-bottom: 8px; }
       .ptv-title{ font-weight: 900; letter-spacing:.08em; font-size: 12px; }
       .ptv-sub{ font-weight: 800; letter-spacing:.04em; font-size: 11px; color:#333; margin-top: 2px; }
@@ -1031,32 +1034,15 @@
       h3{ margin:10px 0 6px 0; font-size:13px; }
       .ptv-meta{ display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; font-size:11px; margin: 6px 0 8px 0; }
       .ptv-instr{ margin: 0 0 8px 0; font-size:11px; color:#333; }
-
       .chart{ border:1px solid #ddd; border-radius:10px; padding: 6mm; margin: 6mm 0; break-inside: avoid; page-break-inside: avoid; }
       .chart img{ display:block; width:100%; height:auto; max-height:85mm; object-fit:contain; }
-
       .page-break{ break-before: page; page-break-before: always; }
-
       table{ width:100%; border-collapse:collapse; font-size:10px; }
       th, td{ border:1px solid #bbb; padding:6px; vertical-align:top; white-space:normal; }
       th{ background:#f2f2f2; text-transform:uppercase; letter-spacing:.04em; }
-
-      .doctor-box{
-        border: 1px solid #999;
-        border-radius: 8px;
-        padding: 10px;
-        margin-top: 10mm;
-      }
-      .doctor-box h4{
-        margin: 0 0 6px 0;
-        font-size: 12px;
-        letter-spacing: .02em;
-      }
-      .doctor-lines{
-        height: 55mm;
-        border-top: 1px dashed #bbb;
-        margin-top: 8px;
-      }
+      .doctor-box{ border: 1px solid #999; border-radius: 8px; padding: 10px; margin-top: 10mm; }
+      .doctor-box h4{ margin: 0 0 6px 0; font-size: 12px; letter-spacing: .02em; }
+      .doctor-lines{ height: 55mm; border-top: 1px dashed #bbb; margin-top: 8px; }
     `;
 
     return `
@@ -1283,19 +1269,16 @@
       return boxY + boxH + 10;
     };
 
-    // Pagina 1: Intensità
     header();
     let y = 55;
     y = addChartBlock("Intensità (max) giorno per giorno", imgInt, y, 80);
 
-    // Pagina 2: Trigger + Farmaci
     doc.addPage();
     header();
     y = 55;
     y = addChartBlock("Trigger più frequenti", imgTrig, y, 65);
     y = addChartBlock("Farmaci più usati", imgMeds, y, 65);
 
-    // Pagina 3: Tabella
     doc.addPage();
     header();
     doc.setFont("helvetica", "bold");
@@ -1379,7 +1362,6 @@
       ty += 9.5;
     }
 
-    // Pagina Note medico
     doc.addPage();
     header();
     doc.setFont("helvetica", "bold");
@@ -1417,7 +1399,6 @@
         return;
       }
 
-      // Fallback download
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -1558,13 +1539,11 @@
     if (stressVal) stressVal.textContent = stress.value;
   });
 
-  // ✅ Global date changes everything
   globalDate?.addEventListener("change", () => {
     if (!globalDate.value) return;
     syncAllToDate(globalDate.value, { pushToMonth: true });
   });
 
-  // Se cambi la data nel form, aggiorna anche globalDate e tutto il resto
   el("date")?.addEventListener("change", () => {
     const v = el("date")?.value;
     if (v) syncAllToDate(v, { pushToMonth: true });
@@ -1576,7 +1555,6 @@
     t.addEventListener("click", () => switchTo(t.getAttribute("data-view")));
   });
 
-  /* ========= PWA install prompt ========= */
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferredPrompt = e;
@@ -1598,34 +1576,27 @@
      INIT
      ========================= */
   function init() {
-    // theme
     const th = getTheme();
     if (themeSelect) themeSelect.value = th;
     setTheme(th);
 
-    // global date + month
     const gd = getGlobalDate();
     if (globalDate) globalDate.value = gd;
     setDateField(gd);
     if (month) month.value = gd.slice(0, 7);
 
-    // name
     if (patientNameInput) patientNameInput.value = getPatientName();
 
-    // stress badge
     if (stressVal && stress) stressVal.textContent = stress.value;
 
     setSubmitLabel();
 
-    // first render
     render();
     renderMonthlyTable();
     drawChartsFor(month?.value || monthNow());
 
-    // resize charts
     window.addEventListener("resize", () => drawChartsFor(month?.value || monthNow()));
 
-    // SW register
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
         navigator.serviceWorker.register("./sw.js").catch(() => {});

@@ -26,6 +26,12 @@
     <div class="header-actions">
       <button id="btnInstall" class="btn btn-ghost" hidden>⬇️ Installa</button>
 
+      <!-- ✅ Data globale: guida tutte le schede -->
+      <div class="header-field">
+        <div class="label">Data</div>
+        <input id="globalDate" type="date" class="input" />
+      </div>
+
       <div class="header-field">
         <div class="label">Mese</div>
         <input id="month" type="month" class="input" />
@@ -76,6 +82,7 @@
             <div class="field">
               <label class="label" for="date">Data</label>
               <input id="date" class="input" type="date" />
+              <div class="hint">Suggerimento: la data qui aggiorna automaticamente anche la data globale.</div>
             </div>
 
             <div class="field">
@@ -278,10 +285,13 @@
       <div class="card">
         <div class="section-title">
           <div class="section-title-left">
-            <h2>Report mensile (stampa / PDF)</h2>
-            <p class="muted">Tocca un giorno o usa ＋ Aggiungi per inserire un attacco con la data già pronta.</p>
+            <h2>Report mensile (PDF / Condivisione)</h2>
+            <p class="muted">La data globale e il mese in alto aggiornano automaticamente questa tabella.</p>
           </div>
-          <button id="btnPrintReportTop" type="button" class="btn btn-primary">Genera PDF / Stampa</button>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end">
+            <button id="btnPrintReportTop" type="button" class="btn btn-ghost">Stampa</button>
+            <button id="btnSharePdfTop" type="button" class="btn btn-primary">Condividi PDF (WhatsApp)</button>
+          </div>
         </div>
 
         <div class="table-wrap">
@@ -303,9 +313,12 @@
 
         <div class="footer-actions">
           <div class="hint">
-            Suggerimento: per un PDF pulito, usa “Salva come PDF” nella finestra di stampa.
+            “Condividi PDF” apre il pannello di condivisione Android: scegli WhatsApp e poi la chat.
           </div>
-          <button id="btnPrintReportBottom" type="button" class="btn btn-primary">Genera PDF / Stampa</button>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end">
+            <button id="btnPrintReportBottom" type="button" class="btn btn-ghost">Stampa</button>
+            <button id="btnSharePdfBottom" type="button" class="btn btn-primary">Condividi PDF (WhatsApp)</button>
+          </div>
         </div>
       </div>
     </section>
@@ -326,7 +339,7 @@
           <div class="field">
             <label class="label" for="patientName">Nome e Cognome (per intestazione Report)</label>
             <input id="patientName" class="input" type="text" placeholder="Es. Mario Rossi" />
-            <div class="hint">Il nome verrà mostrato nel PDF insieme a “Dr.ssa Maria Albanese, Referente del Centro Cefalee”.</div>
+            <div class="hint">Il nome verrà mostrato nel PDF insieme a “Dr.ssa Maria Albanese”.</div>
           </div>
         </div>
 
@@ -346,6 +359,9 @@
       </div>
     </section>
   </main>
+
+  <!-- ✅ jsPDF per generare un file PDF reale (da condividere su WhatsApp) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <script src="./app.js"></script>
 </body>

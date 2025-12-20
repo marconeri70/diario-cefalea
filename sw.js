@@ -1,4 +1,5 @@
-const CACHE = "cefalea-pwa-v40";
+/* sw.js — Diario Cefalea (COMPLETO, aggiornato) */
+const CACHE = "diario-cefalea-v12";
 
 const ASSETS = [
   "./",
@@ -6,49 +7,41 @@ const ASSETS = [
   "./style.css",
   "./app.js",
   "./manifest.webmanifest",
+  "./assets/ptv.png",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
-  "./icons/icon-512-maskable.png"
+  "./icons/icon-512-maskable.png",
 ];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(ASSETS))
+    caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.map(k => (k === CACHE ? null : caches.delete(k))))
-    )
+      Promise.all(keys.map(k => (k !== CACHE ? caches.delete(k) : Promise.resolve())))
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Cache-first per assets, network-first per navigazione
 self.addEventListener("fetch", (event) => {
   const req = event.request;
+  const url = new URL(req.url);
 
-  // Navigazione: prova rete, fallback cache
-  if (req.mode === "navigate") {
-    event.respondWith(
-      fetch(req).then(res => {
-        const copy = res.clone();
-        caches.open(CACHE).then(cache => cache.put("./", copy));
-        return res;
-      }).catch(() => caches.match("./"))
-    );
-    return;
-  }
+  // Only handle same-origin
+  if (url.origin !== self.location.origin) return;
 
-  // Altri file: cache-first
   event.respondWith(
-    caches.match(req).then(cached => cached || fetch(req).then(res => {
-      const copy = res.clone();
-      caches.open(CACHE).then(cache => cache.put(req, copy));
-      return res;
-    }))
+    caches.match(req).then((cached) => {
+      if (cached) return cached;
+      return fetch(req).then((res) => {
+        const resClone = res.clone();
+        caches.open(CACHE).then(cache => cache.put(req, resClone)).catch(()=>{});
+        return res;
+      }).catch(() => cached);
+    })
   );
 });

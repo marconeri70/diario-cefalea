@@ -3,13 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
   <title>Diario Cefalea</title>
-  <meta name="description" content="Diario attacchi di cefalea con grafici e report mensili." />
-  <meta name="theme-color" content="#0b1220" />
 
-  <!-- PWA -->
-  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#0b1220" />
   <link rel="icon" href="./icons/icon-192.png" />
   <link rel="apple-touch-icon" href="./icons/icon-192.png" />
 
@@ -17,52 +14,67 @@
 </head>
 
 <body>
-  <!-- HEADER -->
   <header class="app-header">
-    <div>
+    <div class="brand">
       <div class="brand-title">Diario Cefalea</div>
-      <div class="brand-sub">Registro • Trigger • Grafici • Report PDF</div>
+      <div class="brand-sub">
+        Registro attacchi • Stampa mensile • Export CSV • Offline
+      </div>
     </div>
 
-    <div class="toolbar">
-      <button class="btn btn-ghost" id="btnInstall" hidden>Installa</button>
-      <select id="themeSelect" class="btn" aria-label="Tema">
-        <option value="auto">Tema: Auto</option>
-        <option value="dark">Tema: Scuro</option>
-        <option value="light">Tema: Chiaro</option>
-      </select>
+    <div class="header-actions">
+      <div class="global-date">
+        <label for="globalDate">Data</label>
+        <input id="globalDate" type="date" />
+        <button id="btnGoToday" class="btn btn-ghost" type="button">Oggi</button>
+      </div>
+
+      <button id="btnExportMonth" class="btn btn-ghost" type="button">Esporta CSV (mese)</button>
+      <button id="btnExportAll" class="btn btn-ghost" type="button">Esporta CSV (tutto)</button>
+
+      <button id="btnPrintReportTop" class="btn btn-primary" type="button">PDF / Stampa</button>
+
+      <button id="btnBackup" class="btn btn-ghost" type="button">Backup JSON</button>
+      <label class="btn btn-ghost filelike">
+        Importa
+        <input id="fileImport" type="file" accept="application/json" />
+      </label>
+
+      <button id="btnInstall" class="btn btn-primary" type="button" hidden>Installa app</button>
     </div>
+
+    <nav class="tabs">
+      <button class="tab active" data-view="diario" type="button">Diario</button>
+      <button class="tab" data-view="statistiche" type="button">Statistiche</button>
+      <button class="tab" data-view="report" type="button">Report PDF</button>
+      <button class="tab" data-view="impostazioni" type="button">Impostazioni</button>
+    </nav>
   </header>
 
   <main class="container">
-    <!-- TABS -->
-    <nav class="tabs" aria-label="Navigazione">
-      <button class="tab active" data-view="diario">📝 Diario</button>
-      <button class="tab" data-view="statistiche">📊 Statistiche</button>
-      <button class="tab" data-view="report">🧾 Report</button>
-      <button class="tab" data-view="impostazioni">⚙️ Impostazioni</button>
-    </nav>
-
-    <!-- =======================
+    <!-- =========================
          VIEW: DIARIO
-         ======================= -->
-    <section class="view active" id="view-diario">
+         ========================= -->
+    <section id="view-diario" class="view active">
       <div class="card" id="card-form">
-        <div class="card-head">
-          <div>
-            <h2>Inserisci attacco</h2>
-            <div class="muted">Compila i campi principali e aggiungi trigger / note se necessario.</div>
-          </div>
-          <div class="actions">
-            <button class="btn btn-ghost" id="btnClear" type="button">Svuota campi</button>
+        <h2>Dati intestazione</h2>
+        <div class="grid">
+          <div class="field">
+            <label for="patientName">Nome e Cognome (chi compila il diario)</label>
+            <input id="patientName" type="text" placeholder="Es. Mario Rossi" />
+            <div class="hint">Questo nome verrà riportato nell’intestazione della stampa PDF.</div>
           </div>
         </div>
+      </div>
 
-        <form id="attackForm" class="form-grid">
+      <div class="card">
+        <h2>Nuovo attacco</h2>
+
+        <form id="attackForm" class="form">
           <div class="grid">
             <div class="field">
               <label for="date">Data</label>
-              <input id="date" type="date" required />
+              <input id="date" type="date" />
             </div>
 
             <div class="field">
@@ -72,216 +84,198 @@
 
             <div class="field">
               <label for="intensity">Intensità (1–10)</label>
-              <input id="intensity" type="number" min="1" max="10" step="1" required />
+              <input id="intensity" type="number" min="1" max="10" step="1" />
             </div>
 
             <div class="field">
               <label for="duration">Durata (ore)</label>
-              <input id="duration" type="number" min="0.5" step="0.5" required />
+              <input id="duration" type="number" min="0.1" step="0.1" />
             </div>
 
-            <div class="field span-2">
-              <label for="meds">Farmaci assunti (selezione multipla)</label>
-              <select id="meds" multiple>
-                <option value="Relpax">Relpax</option>
-                <option value="Okitask (FANS)">Okitask (FANS)</option>
+            <div class="field">
+              <label for="meds">Farmaci usati (selezione multipla)</label>
+              <select id="meds" multiple size="7">
+                <option value="Relpax (eletriptan)">Relpax (eletriptan)</option>
                 <option value="Ibuprofene (FANS)">Ibuprofene (FANS)</option>
                 <option value="Naproxene (FANS)">Naproxene (FANS)</option>
+                <option value="Ketoprofene (FANS)">Ketoprofene (FANS)</option>
+                <option value="Diclofenac (FANS)">Diclofenac (FANS)</option>
                 <option value="Paracetamolo">Paracetamolo</option>
-                <option value="Altro (FANS)">Altro (FANS)</option>
-                <option value="Nessuno">Nessuno</option>
+                <option value="Okitask (FANS)">Okitask (FANS)</option>
               </select>
-              <div class="hint">Tip: su Android puoi tenere premuto e selezionare più opzioni.</div>
+              <div class="hint">Puoi selezionare più voci (tieni premuto). Se non hai preso nulla, lascia vuoto.</div>
             </div>
 
             <div class="field">
-              <label for="efficacy">Risposta ai farmaci</label>
+              <label for="efficacy">Efficacia</label>
               <select id="efficacy">
-                <option value="Nessuna">Nessuna</option>
-                <option value="Parziale" selected>Parziale</option>
-                <option value="Buona">Buona</option>
-                <option value="Ottima">Ottima</option>
+                <option>Nessuna</option>
+                <option selected>Parziale</option>
+                <option>Buona</option>
+                <option>Ottima</option>
               </select>
             </div>
+          </div>
 
-            <div class="field">
-              <label>Stress (0–10)</label>
-              <div class="row">
-                <input id="stress" type="range" min="0" max="10" step="1" value="0" />
-                <span class="pill" id="stressVal">0</span>
+          <div class="card soft">
+            <h3>Trigger / contesto</h3>
+
+            <div class="grid">
+              <div class="field">
+                <label>Stress (0–10): <span id="stressVal">0</span></label>
+                <input id="stress" type="range" min="0" max="10" value="0" />
               </div>
-              <div class="hint">Valore indicativo (più alto = più stress).</div>
+
+              <div class="field">
+                <label for="sleepHours">Ore di sonno (opzionale)</label>
+                <input id="sleepHours" type="number" min="0" max="24" step="0.5" placeholder="Es. 6.5" />
+              </div>
+
+              <div class="field">
+                <label for="weather">Meteo (opzionale)</label>
+                <input id="weather" type="text" placeholder="Es. pioggia, vento, cambio pressione..." />
+              </div>
+
+              <div class="field">
+                <label for="foods">Alimenti (opzionale)</label>
+                <input id="foods" type="text" placeholder="Es. cioccolato, vino, formaggi..." />
+              </div>
             </div>
 
-            <div class="field">
-              <label for="sleepHours">Ore di sonno (opzionale)</label>
-              <input id="sleepHours" type="number" min="0" max="24" step="0.5" placeholder="es. 6.5" />
-            </div>
-
-            <div class="field">
-              <label for="weather">Meteo (opzionale)</label>
-              <input id="weather" type="text" placeholder="es. pioggia / caldo / vento..." />
-            </div>
-
-            <div class="field span-2">
-              <label for="foods">Alimenti (opzionale)</label>
-              <input id="foods" type="text" placeholder="es. cioccolato, vino, formaggi..." />
-            </div>
-
-            <div class="field span-2">
-              <label>Trigger (spuntare se presenti)</label>
-              <div class="chips" id="triggerChips">
+            <div class="field" style="margin-top:10px">
+              <label>Trigger (manuali)</label>
+              <div id="triggerChips" class="chips">
                 <label class="chip"><input type="checkbox" value="Stress" /> Stress</label>
                 <label class="chip"><input type="checkbox" value="Poco sonno" /> Poco sonno</label>
                 <label class="chip"><input type="checkbox" value="Meteo" /> Meteo</label>
                 <label class="chip"><input type="checkbox" value="Alimenti" /> Alimenti</label>
-                <label class="chip"><input type="checkbox" value="Luci/Schermi" /> Luci/Schermi</label>
+                <label class="chip"><input type="checkbox" value="Luci forti" /> Luci forti</label>
                 <label class="chip"><input type="checkbox" value="Rumore" /> Rumore</label>
-                <label class="chip"><input type="checkbox" value="Fatica" /> Fatica</label>
-                <label class="chip"><input type="checkbox" value="Ciclo/Ormoni" /> Ciclo/Ormoni</label>
-                <label class="chip"><input type="checkbox" value="Collo/Tensione" /> Collo/Tensione</label>
               </div>
-              <div class="hint">Nota: alcuni trigger possono essere dedotti automaticamente (es. stress alto, poco sonno).</div>
-            </div>
-
-            <div class="field span-2">
-              <label for="notes">Note (opzionale)</label>
-              <textarea id="notes" rows="3" placeholder="es. nausea, fotofobia, aura, attività svolta..."></textarea>
+              <div class="hint">Puoi spuntare i trigger principali, oppure lasciare vuoto.</div>
             </div>
           </div>
 
-          <div class="actions">
+          <div class="field">
+            <label for="notes">Note (opzionale)</label>
+            <textarea id="notes" rows="3" placeholder="Es. nausea, fotofobia, riposo a letto..."></textarea>
+          </div>
+
+          <div class="row">
             <button class="btn btn-primary" type="submit">Salva attacco</button>
+            <button id="btnClear" class="btn btn-ghost" type="button">Svuota campi</button>
           </div>
         </form>
       </div>
 
       <div class="card" id="card-registro">
-        <div class="card-head">
-          <div>
-            <h2>Registro</h2>
-            <div class="muted">Filtra per mese, weekend/feriali e cerca per parole chiave.</div>
-          </div>
-          <div class="actions">
-            <button class="btn" id="btnExportMonth" type="button">Esporta CSV mese</button>
-            <button class="btn" id="btnExportAll" type="button">Esporta CSV tutto</button>
-          </div>
-        </div>
+        <h2>Registro</h2>
 
         <div class="filters">
-          <div class="field compact">
+          <div class="field">
             <label for="month">Mese</label>
             <input id="month" type="month" />
           </div>
 
-          <div class="field compact">
-            <label for="onlyWeekend">Filtro</label>
+          <div class="field">
+            <label for="onlyWeekend">Solo weekend</label>
             <select id="onlyWeekend">
-              <option value="all">Tutti</option>
-              <option value="weekend">Solo weekend</option>
-              <option value="weekday">Solo feriali</option>
+              <option value="all" selected>Tutti</option>
+              <option value="weekend">Weekend</option>
+              <option value="weekday">Feriali</option>
             </select>
           </div>
 
-          <div class="field">
-            <label for="q">Cerca</label>
-            <input id="q" type="text" placeholder="es. relpax, meteo, nausea..." />
-          </div>
-
-          <div class="field">
-            <label>&nbsp;</label>
-            <div class="actions">
-              <button class="btn btn-danger" id="btnDeleteAll" type="button">Cancella tutto</button>
-            </div>
+          <div class="field grow">
+            <label for="q">Ricerca note/farmaci</label>
+            <input id="q" type="text" placeholder="Relpax, nausea, FANS..." />
           </div>
         </div>
 
-        <div class="stats" id="stats"></div>
+        <div id="stats" class="stats"></div>
 
-        <!-- Mobile cards -->
-        <div class="cards" id="cards"></div>
-
-        <!-- Desktop table -->
         <div class="table-wrap">
-          <table class="table" aria-label="Registro attacchi">
+          <table class="table">
             <thead>
               <tr>
                 <th>Data</th>
                 <th>Intensità</th>
                 <th>Durata</th>
                 <th>Farmaci</th>
-                <th>Risposta</th>
+                <th>Efficacia</th>
                 <th>Trigger</th>
                 <th>Note</th>
-                <th>Azioni</th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="rows"></tbody>
           </table>
         </div>
+
+        <div class="cards" id="cards"></div>
       </div>
     </section>
 
-    <!-- =======================
+    <!-- =========================
          VIEW: STATISTICHE
-         ======================= -->
-    <section class="view" id="view-statistiche">
+         ========================= -->
+    <section id="view-statistiche" class="view">
       <div class="card">
-        <div class="card-head">
-          <div>
-            <h2>Statistiche</h2>
-            <div class="muted">Grafici mensili (leggibili anche in stampa PDF).</div>
+        <h2>Statistiche</h2>
+
+        <div class="filters">
+          <div class="field">
+            <label for="statsMonth">Mese</label>
+            <input id="statsMonth" type="month" />
           </div>
-          <div class="actions">
-            <div class="field compact" style="min-width:190px">
-              <label for="statsMonth">Mese</label>
-              <input id="statsMonth" type="month" />
-            </div>
-            <button class="btn btn-primary" id="btnRefreshCharts" type="button">Aggiorna grafici</button>
+          <div class="field">
+            <button id="btnRefreshCharts" class="btn btn-ghost" type="button">Aggiorna grafici</button>
           </div>
         </div>
 
-        <div class="charts">
-          <div class="chart-card">
-            <h3>Intensità (max) giorno per giorno</h3>
-            <canvas id="chartIntensity"></canvas>
-          </div>
+        <div class="chart-card">
+          <h3>Intensità (max) giorno per giorno</h3>
+          <canvas id="chartIntensity" class="chart-canvas"></canvas>
+          <div class="hint">Barre: intensità massima del giorno. Sotto le colonne trovi il numero del giorno.</div>
+        </div>
 
-          <div class="chart-card">
-            <h3>Trigger più frequenti</h3>
-            <canvas id="chartTriggers"></canvas>
-          </div>
+        <div class="chart-card">
+          <h3>Trigger più frequenti</h3>
+          <canvas id="chartTriggers" class="chart-canvas"></canvas>
+          <div class="hint">Conteggio trigger selezionati o dedotti (stress alto / poco sonno / meteo / alimenti).</div>
+        </div>
 
-          <div class="chart-card">
-            <h3>Farmaci più usati</h3>
-            <canvas id="chartMeds"></canvas>
-          </div>
+        <div class="chart-card">
+          <h3>Farmaci più usati</h3>
+          <canvas id="chartMeds" class="chart-canvas"></canvas>
         </div>
       </div>
     </section>
 
-    <!-- =======================
+    <!-- =========================
          VIEW: REPORT
-         ======================= -->
-    <section class="view" id="view-report">
+         ========================= -->
+    <section id="view-report" class="view">
       <div class="card">
-        <div class="card-head">
-          <div>
-            <h2>Report mensile (stampa / PDF)</h2>
-            <div class="muted">Tocca un giorno o usa ＋ Aggiungi per inserire un attacco con la data già pronta.</div>
+        <h2>Report mensile (stampa/PDF)</h2>
+
+        <div class="filters">
+          <div class="field">
+            <label for="printMonth">Scegli mese</label>
+            <input id="printMonth" type="month" />
           </div>
 
-          <div class="actions">
-            <div class="field compact" style="min-width:190px">
-              <label for="printMonth">Scegli mese</label>
-              <input id="printMonth" type="month" />
-            </div>
-            <button class="btn btn-primary" id="btnPrintReportTop" type="button">Genera PDF / Stampa</button>
+          <div class="field">
+            <button id="btnPrintReportBottom" class="btn btn-primary" type="button">Genera PDF / Stampa</button>
           </div>
+        </div>
+
+        <div class="hint">
+          Suggerimento: nella finestra di stampa di Chrome puoi disattivare “Intestazioni e piè di pagina” se vuoi un PDF ancora più pulito.
         </div>
 
         <div class="table-wrap">
-          <table class="table" id="monthlyTable" aria-label="Tabella giornaliera del mese">
+          <table class="table">
             <thead>
               <tr>
                 <th>Giorno</th>
@@ -290,64 +284,40 @@
                 <th>Farmaci</th>
                 <th>Risposta</th>
                 <th>Note / Trigger</th>
-                <th>Azioni</th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="monthlyRows"></tbody>
           </table>
         </div>
-
-        <div class="footer-actions">
-          <div class="muted small">Suggerimento: per un PDF pulito, usa “Salva come PDF” nella finestra di stampa.</div>
-          <button class="btn btn-primary" id="btnPrintReportBottom" type="button">Genera PDF / Stampa</button>
-        </div>
       </div>
     </section>
 
-    <!-- =======================
+    <!-- =========================
          VIEW: IMPOSTAZIONI
-         ======================= -->
-    <section class="view" id="view-impostazioni">
+         ========================= -->
+    <section id="view-impostazioni" class="view">
       <div class="card">
-        <div class="card-head">
-          <div>
-            <h2>Impostazioni</h2>
-            <div class="muted">Nome in intestazione del report e backup/import dati.</div>
+        <h2>Impostazioni</h2>
+
+        <div class="grid">
+          <div class="field">
+            <label for="themeSelect">Tema</label>
+            <select id="themeSelect">
+              <option value="auto" selected>Auto</option>
+              <option value="dark">Scuro</option>
+              <option value="light">Chiaro</option>
+            </select>
           </div>
         </div>
 
-        <div class="grid">
-          <div class="field span-2">
-            <label for="patientName">Nome e Cognome (per intestazione Report)</label>
-            <input id="patientName" type="text" placeholder="es. Rossi Mario" />
-            <div class="hint">Il nome verrà mostrato nel PDF insieme a “Dr.ssa Maria Albanese, Referente del Centro Cefalee”.</div>
-          </div>
-
-          <div class="field">
-            <label>Backup</label>
-            <button class="btn" id="btnBackup" type="button">Scarica backup JSON</button>
-            <div class="hint">Salva tutti i dati in un file JSON.</div>
-          </div>
-
-          <div class="field">
-            <label>Import</label>
-            <input id="fileImport" type="file" accept=".json,application/json" />
-            <div class="hint">Importa un backup JSON (unisce i dati esistenti).</div>
-          </div>
+        <div class="row" style="margin-top:10px">
+          <button id="btnDeleteAll" class="btn btn-danger" type="button">Cancella tutto</button>
         </div>
       </div>
     </section>
   </main>
 
   <script src="./app.js"></script>
-
-  <!-- Register SW (PWA) -->
-  <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("./sw.js").catch(console.error);
-      });
-    }
-  </script>
 </body>
 </html>

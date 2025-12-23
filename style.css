@@ -4,7 +4,8 @@
    - Tab con icone
    - Mobile: pulito e touch-friendly
    - Tabelle: scroll orizzontale fluido + cards su mobile
-   - ✅ Badge intensità “clinico” + Pain Map testa (SVG)
+   - ✅ Selettore “Posizione dolore” (clinico)
+   - ✅ Badge intensità (verde/ambra/rosso)
    ========================= */
 
 * { box-sizing: border-box; }
@@ -39,10 +40,9 @@ body{
   --violet: #b792ff;
   --danger: #ff4d6d;
 
-  /* “clinico” per intensità */
-  --ok: #34d399;      /* verde */
-  --warn: #ffb74f;    /* ambra */
-  --bad: #ff4d6d;     /* rosso */
+  --ok: #35d07f;
+  --warn: #ffb74f;
+  --bad: #ff4d4d;
 
   --bg0: #070b14;
   --bg1: #0b1220;
@@ -412,118 +412,148 @@ p{ margin: 0; }
 }
 .chip input{ accent-color: var(--primary); }
 
-/* ===== ✅ Intensità badge (clinico) ===== */
+/* ===== ✅ Intensity badges ===== */
 .intensity-badge{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 56px;
-  height: 28px;
-  padding: 0 10px;
+  min-width: 54px;
+  padding: 6px 10px;
   border-radius: 999px;
   font-weight: 950;
   letter-spacing: .02em;
   border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--card2) 85%, transparent);
+  color: #071022;
 }
 .intensity-low{
-  background: color-mix(in srgb, var(--ok) 22%, var(--card2));
-  border-color: color-mix(in srgb, var(--ok) 35%, var(--line));
-  color: color-mix(in srgb, var(--text) 90%, #0b1220);
+  background: linear-gradient(135deg, rgba(53,208,127,.95), rgba(95,255,180,.75));
+  border-color: rgba(53,208,127,.40);
 }
 .intensity-mid{
-  background: color-mix(in srgb, var(--warn) 22%, var(--card2));
-  border-color: color-mix(in srgb, var(--warn) 35%, var(--line));
-  color: color-mix(in srgb, var(--text) 90%, #0b1220);
+  background: linear-gradient(135deg, rgba(255,183,79,.95), rgba(255,230,160,.75));
+  border-color: rgba(255,183,79,.40);
 }
 .intensity-high{
-  background: color-mix(in srgb, var(--bad) 22%, var(--card2));
-  border-color: color-mix(in srgb, var(--bad) 35%, var(--line));
-  color: color-mix(in srgb, var(--text) 90%, #0b1220);
+  background: linear-gradient(135deg, rgba(255,77,77,.95), rgba(255,160,160,.75));
+  border-color: rgba(255,77,77,.40);
 }
 
-/* ===== ✅ Pain map ===== */
-.painmap-card{
-  margin-top: 12px;
+/* Mobile card badge also uses these */
+.badge.intensity-low{ background: linear-gradient(135deg, rgba(53,208,127,.95), rgba(95,255,180,.75)); }
+.badge.intensity-mid{ background: linear-gradient(135deg, rgba(255,183,79,.95), rgba(255,230,160,.75)); }
+.badge.intensity-high{ background: linear-gradient(135deg, rgba(255,77,77,.95), rgba(255,160,160,.75)); }
+
+/* ===== ✅ Pain selector ===== */
+.pain-card{
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--card2) 88%, transparent);
   padding: 14px;
+  box-shadow: var(--shadow-soft);
 }
-
-.painmap-head{
+.pain-headline{
   display:flex;
+  gap:12px;
   align-items:flex-start;
   justify-content:space-between;
-  gap: 12px;
+  flex-wrap:wrap;
+  margin-bottom: 10px;
 }
-.painmap-title{
-  font-weight: 950;
-  font-size: 16px;
-  letter-spacing: .01em;
-}
-
-.painmap-controls{
-  display:flex;
-  gap: 10px;
-  margin-top: 10px;
-  flex-wrap: wrap;
-}
-
-.seg{
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 10px 14px;
+.pain-kicker{
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
   font-weight: 900;
-  cursor: pointer;
-  background: color-mix(in srgb, var(--card) 85%, transparent);
-  color: var(--text);
-  box-shadow: 0 6px 16px rgba(0,0,0,.10);
 }
-.seg.active{
-  border-color: color-mix(in srgb, var(--primary) 45%, var(--line));
-  background: color-mix(in srgb, var(--primary) 18%, var(--card2));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent), var(--shadow-soft);
+.pain-title{
+  font-size: 18px;
+  font-weight: 950;
+  margin-top: 2px;
+}
+.pain-sub{
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+.pain-actions{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap:wrap;
 }
 
-.painmap-wrap{
-  margin-top: 12px;
-  border-radius: 16px;
+.pain-tabs{
+  display:flex;
+  gap:10px;
+  overflow-x:auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 6px 0 4px 0;
+}
+.pain-tabs::-webkit-scrollbar{ display:none; }
+
+.pain-tab{
   border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--card) 70%, transparent);
-  padding: 12px;
+  background: color-mix(in srgb, var(--card) 75%, transparent);
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: 14px;
+  cursor:pointer;
+  font-weight: 950;
+  min-width: 120px;
+  transition: transform .08s ease, filter .12s ease, border-color .12s ease;
+  box-shadow: 0 8px 18px rgba(0,0,0,.12);
+}
+.pain-tab:hover{ filter: brightness(1.03); transform: translateY(-1px); }
+.pain-tab:active{ transform: translateY(0); }
+.pain-tab.active{
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--line));
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--primary) 75%, rgba(255,255,255,.15)),
+    color-mix(in srgb, var(--cyan) 35%, var(--primary) 65%)
+  );
+  color: #071022;
+}
+
+.pain-stage{
   display:flex;
   justify-content:center;
+  align-items:center;
+  margin-top: 10px;
 }
+.pain-figure{
+  display:none;
+  width: min(520px, 100%);
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--card) 78%, transparent);
+  padding: 12px;
+}
+.pain-figure.active{ display:block; }
 
-.painmap-view{ display:none; width: min(520px, 100%); }
-.painmap-view.active{ display:block; }
-
-.headsvg{
+.head-svg{
   width: 100%;
   height: auto;
   display:block;
 }
 
-.zone{
-  fill: rgba(0,0,0,0);
-  stroke: rgba(255,255,255,.14);
-  stroke-width: 2;
+.pain-areas .pain-area{
+  fill: rgba(255, 70, 70, 0.0);
+  stroke: rgba(255,255,255,.12);
+  stroke-width: 1.2;
   cursor: pointer;
-  transition: fill .12s ease, stroke .12s ease, opacity .12s ease, filter .12s ease;
+  transition: fill .12s ease, stroke .12s ease, transform .12s ease;
 }
-.zone:hover{
-  fill: rgba(255,255,255,.12);
+.pain-areas .pain-area:hover{
+  fill: rgba(255, 70, 70, 0.18);
   stroke: rgba(255,255,255,.28);
 }
-.zone.selected{
-  fill: rgba(255,77,109,.38);
-  stroke: rgba(255,77,109,.72);
-  filter: drop-shadow(0 2px 6px rgba(255,77,109,.25));
-}
-
-.painmap-footer{
-  margin-top: 10px;
+.pain-areas .pain-area.active{
+  fill: rgba(255, 70, 70, 0.38);
+  stroke: rgba(255, 220, 220, .60);
+  filter: drop-shadow(0 8px 14px rgba(0,0,0,.22));
 }
 
 /* ===== Filters / tables ===== */
@@ -543,7 +573,6 @@ p{ margin: 0; }
   flex-wrap: wrap;
 }
 
-/* Scroll: important on phone and small screens */
 .table-wrap{
   width: 100%;
   overflow-x: auto;
@@ -556,7 +585,7 @@ p{ margin: 0; }
 .table{
   width: 100%;
   border-collapse: collapse;
-  min-width: 920px;
+  min-width: 980px;
 }
 .table th, .table td{
   padding: 10px 10px;
@@ -618,8 +647,7 @@ p{ margin: 0; }
   border-radius: 14px;
   padding: 8px 10px;
   font-weight: 950;
-  border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--card) 85%, transparent);
+  color: #071022;
 }
 .small{ font-size: 12px; color: var(--muted); }
 .card-row strong{ color: var(--text); }
@@ -669,6 +697,7 @@ p{ margin: 0; }
   .field.actions{ grid-column: span 2; }
   .filter-row{ grid-template-columns: 1fr; }
   .logo{ width: 120px; }
+  .pain-tab{ min-width: 110px; }
 }
 
 @media (max-width: 720px){
@@ -679,10 +708,11 @@ p{ margin: 0; }
   .header-field{ flex: 1; min-width: 140px; }
   .chart-canvas{ height: 280px; }
 
-  /* On mobile show cards list instead of wide table */
   .table{ min-width: 0; }
   .table-wrap{ display: none; }
   .cards{ display: block; }
+
+  .pain-actions{ width:100%; justify-content:space-between; }
 }
 
 @media (max-width: 420px){

@@ -1,18 +1,27 @@
 /* =========================
    Diario Cefalea - app.js (COMPLETO, aggiornato, NON interrotto)
-   Migliorie principali:
-   - Grafici migliorati (WOW + clinico):
-     • Barre arrotondate + tooltip
-     • Intensità colorata (verde/ambra/rosso) + weekend evidenziati + valore sopra barre
-     • Trigger/Farmaci in barre orizzontali per leggibilità etichette
-   - Tutto il resto invariato (stampa, jsPDF, share, date sync, ecc.)
+   Funzioni:
+   - Data globale (globalDate) sincronizzata su tutte le schede
+   - Inserimento attacco + Registro con filtri e ricerca
+   - Cards su mobile
+   - Statistiche (canvas) senza librerie
+   - Report mensile: tabella giorno-per-giorno + azioni (Aggiungi/Apri)
+   - Stampa: grafici + tabella report + riquadro Note medico (stile “clinico”)
+   - Condivisione PDF reale via jsPDF + Web Share (WhatsApp tramite pannello condivisione)
+   - Tema: auto/scuro/chiaro
+   - Backup/Import JSON
+   - Export CSV mese/tutto
+   - PWA install prompt + service worker register
+   - ✅ Badge intensità “clinico” (1–3 verde, 4–6 ambra, 7–10 rosso)
+   - ✅ Posizione dolore: selettore con prospettiva + testa cliccabile
+   - ✅ Grafico “Posizione dolore” in Statistiche + Stampa + PDF
    ========================= */
 
 (() => {
   "use strict";
 
   /* ========= Keys ========= */
-  const KEY = "cefalea_attacks_v2";
+  const KEY = "cefalea_attacks_v3";
   const KEY_NAME = "cefalea_patient_name_v2";
   const KEY_THEME = "cefalea_theme_v1";
   const KEY_GLOBAL_DATE = "cefalea_global_date_v1";
@@ -20,7 +29,7 @@
   /* ========= DOM helpers ========= */
   const el = (id) => document.getElementById(id);
 
-  /* ========= Elements (come da index.html) ========= */
+  /* ========= Elements ========= */
   const btnInstall = el("btnInstall");
   const globalDate = el("globalDate");
   const month = el("month");
@@ -50,6 +59,7 @@
   const chartIntensity = el("chartIntensity");
   const chartTriggers = el("chartTriggers");
   const chartMeds = el("chartMeds");
+  const chartPain = el("chartPain");
   const btnRefreshCharts = el("btnRefreshCharts");
 
   const monthlyRows = el("monthlyRows");
@@ -65,6 +75,12 @@
   const stress = el("stress");
   const stressVal = el("stressVal");
 
+  /* ========= Pain selector elements ========= */
+  const painTabs = Array.from(document.querySelectorAll(".pain-tab"));
+  const painFigures = Array.from(document.querySelectorAll(".pain-figure"));
+  const painSelectionLabel = el("painSelectionLabel");
+  const btnClearPain = el("btnClearPain");
+
   /* ========= PWA install ========= */
   let deferredPrompt = null;
 
@@ -72,7 +88,7 @@
   let EDIT_ID = null;
 
   /* =========================
-     Utils: date / text
+     Utils
      ========================= */
   function isoToday() {
     const d = new Date();
@@ -150,7 +166,7 @@
   }
 
   /* =========================
-     ✅ Badge intensità (clinico)
+     ✅ Badge intensità
      ========================= */
   function intensityClass(intensity) {
     const n = Number(intensity || 0);
@@ -163,6 +179,104 @@
     const cls = intensityClass(intensity);
     const n = Number(intensity || 0);
     return `<span class="intensity-badge intensity-${cls}">${n}/10</span>`;
+  }
+
+  /* =========================
+     ✅ Posizione dolore
+     ========================= */
+  const PAIN_LABELS = {
+    front_forehead_left: "Fronte (sx)",
+    front_forehead_right: "Fronte (dx)",
+    front_temple_left: "Tempia (sx)",
+    front_temple_right: "Tempia (dx)",
+    front_eye_left: "Perioculare (sx)",
+    front_eye_right: "Perioculare (dx)",
+    front_jaw_left: "Mandibola (sx)",
+    front_jaw_right: "Mandibola (dx)",
+
+    left_forehead: "Fronte (lato sx)",
+    left_temple: "Tempia (lato sx)",
+    left_eye: "Perioculare (lato sx)",
+    left_jaw: "Mandibola (lato sx)",
+    left_neck: "Collo (sx)",
+
+    right_forehead: "Fronte (lato dx)",
+    right_temple: "Tempia (lato dx)",
+    right_eye: "Perioculare (lato dx)",
+    right_jaw: "Mandibola (lato dx)",
+    right_neck: "Collo (dx)",
+
+    back_occipital_left: "Occipitale (sx)",
+    back_occipital_right: "Occipitale (dx)",
+    back_neck_left: "Collo post. (sx)",
+    back_neck_right: "Collo post. (dx)",
+  };
+
+  let painState = { persp: "front", area: "" };
+
+  function painLabel(area) {
+    if (!area) return "—";
+    return PAIN_LABELS[area] || area;
+  }
+
+  function setPainUI(persp, area) {
+    painState.persp = persp || "front";
+    painState.area = area || "";
+
+    // tabs
+    painTabs.forEach((b) => {
+      const p = b.getAttribute("data-persp");
+      const on = p === painState.persp;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-selected", on ? "true" : "false");
+    });
+
+    // figures
+    painFigures.forEach((f) => {
+      const key = f.getAttribute("data-figure");
+      f.classList.toggle("active", key === painState.persp);
+    });
+
+    // clear active areas
+    document.querySelectorAll(".pain-area.active").forEach((x) => x.classList.remove("active"));
+
+    // set active area (only inside current figure)
+    if (painState.area) {
+      const fig = document.querySelector(`.pain-figure[data-figure="${painState.persp}"]`);
+      const target = fig?.querySelector(`.pain-area[data-area="${CSS.escape(painState.area)}"]`);
+      target?.classList.add("active");
+    }
+
+    if (painSelectionLabel) {
+      painSelectionLabel.textContent = `Selezione: ${painLabel(painState.area)}`;
+    }
+  }
+
+  function bindPainSelector() {
+    // switch perspective
+    painTabs.forEach((b) => {
+      b.addEventListener("click", () => {
+        const p = b.getAttribute("data-persp") || "front";
+        // se cambi prospettiva, tieni area solo se esiste in quella figura
+        let nextArea = painState.area;
+        const fig = document.querySelector(`.pain-figure[data-figure="${p}"]`);
+        if (nextArea && !fig?.querySelector(`.pain-area[data-area="${CSS.escape(nextArea)}"]`)) {
+          nextArea = "";
+        }
+        setPainUI(p, nextArea);
+      });
+    });
+
+    // click area
+    document.querySelectorAll(".pain-area").forEach((a) => {
+      a.addEventListener("click", () => {
+        const area = a.getAttribute("data-area") || "";
+        setPainUI(painState.persp, area);
+      });
+    });
+
+    // clear
+    btnClearPain?.addEventListener("click", () => setPainUI(painState.persp, ""));
   }
 
   /* =========================
@@ -206,6 +320,9 @@
     clearTriggers();
     if (stress) stress.value = "0";
     if (stressVal) stressVal.textContent = "0";
+
+    // pain reset (keep persp, clear area)
+    setPainUI(painState.persp || "front", "");
   }
   function setDateField(dateISO) {
     const d1 = el("date");
@@ -365,13 +482,15 @@
         const foods = (a.foods || "").toLowerCase();
         const weather = (a.weather || "").toLowerCase();
         const date = (a.date || "").toLowerCase();
+        const pain = painLabel(a.painArea || "").toLowerCase();
         return (
           meds.includes(query) ||
           notes.includes(query) ||
           trig.includes(query) ||
           foods.includes(query) ||
           weather.includes(query) ||
-          date.includes(query)
+          date.includes(query) ||
+          pain.includes(query)
         );
       });
     }
@@ -453,13 +572,16 @@
     setSelectedMeds(a.meds || []);
     setSelectedTriggers(a.triggers || []);
 
+    // pain
+    setPainUI(a.painPerspective || "front", a.painArea || "");
+
     switchTo("diario");
     el("card-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
     setTimeout(() => el("intensity")?.focus(), 250);
   }
 
   /* =========================
-     Render: Registro (tabella + cards)
+     Render: Registro
      ========================= */
   function render() {
     const list = filteredList();
@@ -471,6 +593,7 @@
           const note = a.notes?.trim() ? a.notes : "—";
           const trig = a.triggers?.length ? a.triggers.join(", ") : "—";
           const wk = isWeekend(a.date) ? "Weekend" : "Feriale";
+          const pain = painLabel(a.painArea || "");
 
           return `
             <tr>
@@ -480,6 +603,7 @@
               <td>${escapeHtml(meds)}</td>
               <td>${escapeHtml(a.efficacy || "—")}</td>
               <td>${escapeHtml(trig)}</td>
+              <td>${escapeHtml(pain)}</td>
               <td>${escapeHtml(note)}</td>
               <td style="text-align:right; white-space:nowrap">
                 <button class="iconbtn" data-edit="${a.id}" title="Modifica">✏️</button>
@@ -500,6 +624,7 @@
           const wk = isWeekend(a.date) ? "Weekend" : "Feriale";
           const extras = compactExtras(a);
           const cls = intensityClass(a.intensity);
+          const pain = painLabel(a.painArea || "");
 
           return `
             <div class="card-row">
@@ -515,6 +640,7 @@
               <div class="small"><strong>Farmaci:</strong> ${escapeHtml(meds)}</div>
               <div class="small"><strong>Efficacia:</strong> ${escapeHtml(a.efficacy || "—")}</div>
               <div class="small"><strong>Trigger:</strong> ${escapeHtml(trig)}</div>
+              <div class="small"><strong>Posizione:</strong> ${escapeHtml(pain)}</div>
               <div class="small"><strong>Note:</strong> ${escapeHtml(note)}</div>
 
               <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px">
@@ -527,7 +653,6 @@
         .join("");
     }
 
-    // Bind actions
     document.querySelectorAll("[data-del]").forEach((b) => {
       b.addEventListener("click", () => {
         const id = b.getAttribute("data-del");
@@ -566,6 +691,13 @@
     dayAttacks.forEach((a) => (a.triggers || []).forEach((t) => trigSet.add(t)));
     const trig = Array.from(trigSet).join(", ");
 
+    const painSet = new Set();
+    dayAttacks.forEach((a) => {
+      const p = painLabel(a.painArea || "");
+      if (p && p !== "—") painSet.add(p);
+    });
+    const painTxt = Array.from(painSet).join(", ");
+
     const order = ["Nessuna", "Parziale", "Buona", "Ottima"];
     const worstEff = dayAttacks
       .map((a) => a.efficacy || "Parziale")
@@ -584,17 +716,16 @@
       .filter((x) => x && x !== "—")
       .join(" • ");
 
-    const trigNote = [trig ? `Trigger: ${trig}` : "", extras ? extras : "", notes ? `Note: ${notes}` : ""]
+    const trigNote = [
+      trig ? `Trigger: ${trig}` : "",
+      painTxt ? `Sede: ${painTxt}` : "",
+      extras ? extras : "",
+      notes ? `Note: ${notes}` : "",
+    ]
       .filter(Boolean)
       .join(" — ");
 
-    return {
-      maxInt,
-      sumDur: Number.isFinite(sumDur) ? sumDur : 0,
-      meds,
-      worstEff,
-      trigNote,
-    };
+    return { maxInt, sumDur: Number.isFinite(sumDur) ? sumDur : 0, meds, worstEff, trigNote };
   }
 
   function goToDiaryWithDate(dateISO) {
@@ -706,6 +837,7 @@
       "Farmaci",
       "Efficacia",
       "Trigger",
+      "Posizione_dolore",
       "Stress_0_10",
       "Ore_sonno",
       "Meteo",
@@ -726,6 +858,7 @@
         meds,
         a.efficacy || "",
         trig,
+        painLabel(a.painArea || ""),
         typeof a.stress === "number" ? a.stress : "",
         typeof a.sleepHours === "number" ? a.sleepHours : "",
         a.weather || "",
@@ -789,9 +922,8 @@
   }
 
   /* =========================
-     Charts (canvas) – WOW + clinico (no libs)
+     Charts (canvas) – no libs
      ========================= */
-
   function cssColor(varName, fallback) {
     const v = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
     return v || fallback;
@@ -814,130 +946,18 @@
     return { W, H, dpr };
   }
 
-  function roundRect(ctx, x, y, w, h, r) {
-    const rr = Math.min(r, w / 2, h / 2);
-    ctx.beginPath();
-    ctx.moveTo(x + rr, y);
-    ctx.arcTo(x + w, y, x + w, y + h, rr);
-    ctx.arcTo(x + w, y + h, x, y + h, rr);
-    ctx.arcTo(x, y + h, x, y, rr);
-    ctx.arcTo(x, y, x + w, y, rr);
-    ctx.closePath();
-  }
-
-  // Tooltip (tap/hover)
-  function ensureTooltip(canvas) {
-    if (!canvas) return null;
-    const host = canvas.parentElement;
-    if (!host) return null;
-
-    host.style.position = host.style.position || "relative";
-
-    let tip = host.querySelector(".chart-tooltip");
-    if (!tip) {
-      tip = document.createElement("div");
-      tip.className = "chart-tooltip";
-      tip.style.display = "none";
-      host.appendChild(tip);
-    }
-    return tip;
-  }
-
-  function attachTooltip(canvas) {
-    if (!canvas || canvas.__tooltipAttached) return;
-    canvas.__tooltipAttached = true;
-
-    const tip = ensureTooltip(canvas);
-    if (!tip) return;
-
-    const hide = () => {
-      tip.style.display = "none";
-    };
-
-    const showAt = (x, y, html) => {
-      tip.innerHTML = html;
-      tip.style.display = "block";
-      tip.style.left = `${x}px`;
-      tip.style.top = `${y}px`;
-    };
-
-    const hitTest = (mx, my) => {
-      const bars = canvas.__bars || [];
-      for (const b of bars) {
-        if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) return b;
-      }
-      return null;
-    };
-
-    const onMove = (clientX, clientY) => {
-      const rect = canvas.getBoundingClientRect();
-      const mx = clientX - rect.left;
-      const my = clientY - rect.top;
-
-      const hit = hitTest(mx, my);
-      if (!hit) return hide();
-
-      // posizionamento tooltip (dentro card)
-      const hostRect = canvas.parentElement.getBoundingClientRect();
-      const x = mx + (rect.left - hostRect.left) + 12;
-      const y = my + (rect.top - hostRect.top) - 10;
-
-      const html = `
-        <div class="t-title">${escapeHtml(hit.label)}</div>
-        <div class="t-sub">${escapeHtml(hit.value)}</div>
-      `;
-      showAt(x, y, html);
-    };
-
-    // Mouse
-    canvas.addEventListener("mousemove", (e) => onMove(e.clientX, e.clientY));
-    canvas.addEventListener("mouseleave", hide);
-
-    // Touch
-    canvas.addEventListener(
-      "touchstart",
-      (e) => {
-        const t = e.touches?.[0];
-        if (!t) return;
-        onMove(t.clientX, t.clientY);
-      },
-      { passive: true }
-    );
-    canvas.addEventListener(
-      "touchmove",
-      (e) => {
-        const t = e.touches?.[0];
-        if (!t) return;
-        onMove(t.clientX, t.clientY);
-      },
-      { passive: true }
-    );
-    canvas.addEventListener("touchend", () => setTimeout(hide, 800), { passive: true });
-  }
-
-  function severityColorForIntensity(n) {
-    const num = Number(n || 0);
-    if (num >= 1 && num <= 3) return cssColor("--green", "#22c55e");
-    if (num >= 4 && num <= 6) return cssColor("--amber", "#f59e0b");
-    if (num >= 7 && num <= 10) return cssColor("--danger", "#ef4444");
-    return cssColor("--primary", "#2b6cff");
-  }
-
   function drawBarChart(canvas, labels, values, options) {
     if (!canvas) return;
-    attachTooltip(canvas);
-
     const ctx = canvas.getContext("2d");
     const { W, H } = ensureCanvasSize(canvas);
 
-    // Background
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = options.bgColor;
     ctx.fillRect(0, 0, W, H);
 
     const padL = 54;
     const padR = 14;
-    const padT = 14;
+    const padT = 16;
     const padB = 72;
 
     const plotW = W - padL - padR;
@@ -945,24 +965,6 @@
 
     const maxV = Math.max(1, ...values);
 
-    // Weekend shading (solo per grafico intensità)
-    if (options.weekendMask?.length) {
-      ctx.save();
-      ctx.globalAlpha = 0.25;
-      ctx.fillStyle = options.weekendShadeColor;
-      const n = labels.length || 1;
-      const gap = 3;
-      const barW = Math.max(3, plotW / n - gap);
-
-      for (let i = 0; i < options.weekendMask.length; i++) {
-        if (!options.weekendMask[i]) continue;
-        const x = padL + i * (barW + gap);
-        ctx.fillRect(x - 1, padT, barW + 2, plotH);
-      }
-      ctx.restore();
-    }
-
-    // Grid + Y labels
     ctx.strokeStyle = options.gridColor;
     ctx.lineWidth = 1;
     ctx.fillStyle = options.textColor;
@@ -986,47 +988,15 @@
     const gap = 3;
     const barW = Math.max(3, plotW / n - gap);
 
-    // Bars + labels + tooltip rectangles
-    const bars = [];
     for (let i = 0; i < labels.length; i++) {
-      const v = Number(values[i] || 0);
+      const v = values[i] || 0;
       const x = padL + i * (barW + gap);
-
       const h = (v / maxV) * plotH;
       const y = padT + (plotH - h);
-
-      const color = options.dynamicBarColor ? options.dynamicBarColor(v, i) : options.barColor;
-
-      // barra arrotondata
-      ctx.save();
-      ctx.fillStyle = color;
-      roundRect(ctx, x, y, barW, h, 8);
-      ctx.fill();
-      ctx.restore();
-
-      // valore sopra la barra (solo se attivo)
-      if (options.showValues && v > 0) {
-        ctx.save();
-        ctx.fillStyle = options.valueTextColor;
-        ctx.font = "11px system-ui";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "bottom";
-        ctx.fillText(String(v), x + barW / 2, y - 4);
-        ctx.restore();
-      }
-
-      // tooltip hitbox (usa area barra)
-      bars.push({
-        x,
-        y,
-        w: barW,
-        h: Math.max(8, h),
-        label: options.tooltipLabelFn ? options.tooltipLabelFn(i) : String(labels[i]),
-        value: options.tooltipValueFn ? options.tooltipValueFn(v, i) : String(v),
-      });
+      ctx.fillStyle = options.barColor;
+      ctx.fillRect(x, y, barW, h);
     }
 
-    // X labels
     ctx.fillStyle = options.textColor;
     const smallFont = labels.length > 25 ? 9 : 11;
     ctx.font = `${smallFont}px system-ui`;
@@ -1037,104 +1007,8 @@
       if (labels.length > 25 && (i + 1) % 2 === 0) continue;
       const x = padL + i * (barW + gap) + barW / 2;
       const y = H - padB + 24;
-
-      // weekend label leggermente diverso
-      if (options.weekendMask?.[i]) {
-        ctx.save();
-        ctx.globalAlpha = 0.9;
-        ctx.fillText(String(labels[i]).slice(0, 8), x, y);
-        ctx.restore();
-      } else {
-        ctx.fillText(String(labels[i]).slice(0, 8), x, y);
-      }
+      ctx.fillText(String(labels[i]).slice(0, 14), x, y);
     }
-
-    canvas.__bars = bars;
-  }
-
-  function drawHBarChart(canvas, labels, values, options) {
-    if (!canvas) return;
-    attachTooltip(canvas);
-
-    const ctx = canvas.getContext("2d");
-    const { W, H } = ensureCanvasSize(canvas);
-
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = options.bgColor;
-    ctx.fillRect(0, 0, W, H);
-
-    // layout orizzontale: più spazio a sinistra
-    const padL = 160;
-    const padR = 18;
-    const padT = 18;
-    const padB = 18;
-
-    const plotW = W - padL - padR;
-    const plotH = H - padT - padB;
-
-    const maxV = Math.max(1, ...values);
-    const rows = labels.length || 1;
-    const gap = 10;
-    const rowH = Math.max(18, Math.floor(plotH / rows) - gap);
-
-    // grid (verticale)
-    ctx.strokeStyle = options.gridColor;
-    ctx.lineWidth = 1;
-
-    const steps = 4;
-    for (let i = 0; i <= steps; i++) {
-      const x = padL + (plotW * i) / steps;
-      ctx.beginPath();
-      ctx.moveTo(x, padT);
-      ctx.lineTo(x, H - padB);
-      ctx.stroke();
-    }
-
-    // labels + barre
-    const bars = [];
-    for (let i = 0; i < labels.length; i++) {
-      const v = Number(values[i] || 0);
-      const y = padT + i * (rowH + gap);
-
-      // etichetta sinistra
-      ctx.save();
-      ctx.fillStyle = options.textColor;
-      ctx.font = "12px system-ui";
-      ctx.textAlign = "right";
-      ctx.textBaseline = "middle";
-      ctx.fillText(String(labels[i]).slice(0, 26), padL - 10, y + rowH / 2);
-      ctx.restore();
-
-      // barra
-      const w = (v / maxV) * plotW;
-      const x = padL;
-
-      ctx.save();
-      ctx.fillStyle = options.barColor;
-      roundRect(ctx, x, y, w, rowH, 10);
-      ctx.fill();
-      ctx.restore();
-
-      // valore a destra
-      ctx.save();
-      ctx.fillStyle = options.valueTextColor;
-      ctx.font = "12px system-ui";
-      ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-      ctx.fillText(String(v), x + w + 8, y + rowH / 2);
-      ctx.restore();
-
-      bars.push({
-        x,
-        y,
-        w: Math.max(8, w),
-        h: rowH,
-        label: String(labels[i]),
-        value: `${v} occorrenze`,
-      });
-    }
-
-    canvas.__bars = bars;
   }
 
   function topCounts(items) {
@@ -1150,17 +1024,12 @@
     const list = listForMonth(yyyyMM);
     const dcount = daysInMonth(yyyyMM);
 
-    // intensità per giorno (max)
     const byDay = attacksByDayForMonth(yyyyMM);
     const labels = [];
     const vals = [];
-    const weekendMask = [];
-
     for (let day = 1; day <= dcount; day++) {
       const iso = isoOfDay(yyyyMM, day);
       labels.push(String(day));
-      weekendMask.push(isWeekend(iso));
-
       const dayAttacks = byDay.get(iso) || [];
       if (!dayAttacks.length) {
         vals.push(0);
@@ -1170,55 +1039,48 @@
       vals.push(maxInt);
     }
 
-    const bg = cssColor("--card", "rgba(255,255,255,.08)");
-    const grid = cssColor("--line", "rgba(255,255,255,.10)");
-    const txt = cssColor("--muted", "rgba(234,240,255,.72)");
+    const bg = cssColor("--card", "#111a2d");
+    const grid = cssColor("--line", "#24314f");
+    const txt = cssColor("--muted", "#a6b3d1");
     const bar = cssColor("--primary", "#2b6cff");
-    const weekendShade = cssColor("--card2", "rgba(255,255,255,.06)");
-    const valTxt = cssColor("--text", "#eaf0ff");
 
-    drawBarChart(chartIntensity, labels, vals, {
-      bgColor: bg,
-      gridColor: grid,
-      textColor: txt,
-      barColor: bar,
-      weekendMask,
-      weekendShadeColor: weekendShade,
-      showValues: true,
-      valueTextColor: valTxt,
-      dynamicBarColor: (v) => (v > 0 ? severityColorForIntensity(v) : cssColor("--line", "rgba(255,255,255,.10)")),
-      tooltipLabelFn: (i) => {
-        const iso = isoOfDay(yyyyMM, i + 1);
-        const d = new Date(iso + "T00:00:00");
-        const dow = d.toLocaleDateString("it-IT", { weekday: "short" });
-        return `Giorno ${labels[i]} (${dow})`;
-      },
-      tooltipValueFn: (v) => (v ? `Intensità max: ${v}/10` : "Nessun attacco"),
-    });
+    drawBarChart(chartIntensity, labels, vals, { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar });
 
-    // Trigger: TOP 10 (barre orizzontali)
     const allTrig = [];
     for (const a of list) {
       const t = new Set([...(a.triggers || []), ...deducedTriggers(a)]);
       t.forEach((x) => allTrig.push(x));
     }
     const trigCounts = topCounts(allTrig).slice(0, 10);
-    drawHBarChart(
+    drawBarChart(
       chartTriggers,
       trigCounts.map((x) => x[0]),
       trigCounts.map((x) => x[1]),
-      { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar, valueTextColor: valTxt }
+      { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar }
     );
 
-    // Farmaci: TOP 10 (barre orizzontali)
     const allMeds = [];
     for (const a of list) (a.meds || []).forEach((x) => allMeds.push(x));
     const medsCounts = topCounts(allMeds).slice(0, 10);
-    drawHBarChart(
+    drawBarChart(
       chartMeds,
       medsCounts.map((x) => String(x[0]).replace(" (FANS)", "")),
       medsCounts.map((x) => x[1]),
-      { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar, valueTextColor: valTxt }
+      { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar }
+    );
+
+    // ✅ Pain chart
+    const allPain = [];
+    for (const a of list) {
+      const p = painLabel(a.painArea || "");
+      allPain.push(p === "—" ? "Non indicata" : p);
+    }
+    const painCounts = topCounts(allPain).slice(0, 10);
+    drawBarChart(
+      chartPain,
+      painCounts.map((x) => x[0]),
+      painCounts.map((x) => x[1]),
+      { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar }
     );
   }
 
@@ -1283,6 +1145,7 @@
     const imgInt = chartIntensity ? chartIntensity.toDataURL("image/png") : "";
     const imgTrig = chartTriggers ? chartTriggers.toDataURL("image/png") : "";
     const imgMeds = chartMeds ? chartMeds.toDataURL("image/png") : "";
+    const imgPain = chartPain ? chartPain.toDataURL("image/png") : "";
 
     const monthList = listForMonth(yyyyMM);
     const hasAnyData = monthList.length > 0;
@@ -1373,6 +1236,11 @@
           <div class="chart">
             <h3>Farmaci più usati</h3>
             ${hasAnyData && imgMeds ? `<img src="${imgMeds}" alt="Grafico Farmaci">` : `<p class="ptv-instr">Nessun dato registrato nel mese.</p>`}
+          </div>
+
+          <div class="chart">
+            <h3>Posizione del dolore</h3>
+            ${hasAnyData && imgPain ? `<img src="${imgPain}" alt="Grafico Posizione dolore">` : `<p class="ptv-instr">Nessun dato registrato nel mese.</p>`}
           </div>
 
           <div class="page-break"></div>
@@ -1495,6 +1363,7 @@
     const imgInt = safeChartDataURL(chartIntensity);
     const imgTrig = safeChartDataURL(chartTriggers);
     const imgMeds = safeChartDataURL(chartMeds);
+    const imgPain = safeChartDataURL(chartPain);
 
     const rowsPdf = buildRowsForPdf(yyyyMM);
 
@@ -1556,19 +1425,20 @@
       return boxY + boxH + 10;
     };
 
-    // Pagina 1: Intensità
+    // Pagina 1
     header();
     let y = 55;
-    y = addChartBlock("Intensità (max) giorno per giorno", imgInt, y, 80);
+    y = addChartBlock("Intensità (max) giorno per giorno", imgInt, y, 78);
 
-    // Pagina 2: Trigger + Farmaci
+    // Pagina 2
     doc.addPage();
     header();
     y = 55;
-    y = addChartBlock("Trigger più frequenti", imgTrig, y, 65);
-    y = addChartBlock("Farmaci più usati", imgMeds, y, 65);
+    y = addChartBlock("Trigger più frequenti", imgTrig, y, 58);
+    y = addChartBlock("Farmaci più usati", imgMeds, y, 58);
+    y = addChartBlock("Posizione del dolore", imgPain, y, 58);
 
-    // Pagina 3: Tabella
+    // Tabella
     doc.addPage();
     header();
     doc.setFont("helvetica", "bold");
@@ -1652,7 +1522,7 @@
       ty += 9.5;
     }
 
-    // Pagina Note medico
+    // Note medico
     doc.addPage();
     header();
     doc.setFont("helvetica", "bold");
@@ -1759,6 +1629,9 @@
         weather: weatherVal,
         foods: foodsVal,
         notes,
+        // ✅ pain
+        painPerspective: painState.persp || "front",
+        painArea: painState.area || "",
       };
 
       if (EDIT_ID) {
@@ -1868,27 +1741,38 @@
      INIT
      ========================= */
   function init() {
+    // theme
     const th = getTheme();
     if (themeSelect) themeSelect.value = th;
     setTheme(th);
 
+    // global date + month
     const gd = getGlobalDate();
     if (globalDate) globalDate.value = gd;
     setDateField(gd);
     if (month) month.value = gd.slice(0, 7);
 
+    // name
     if (patientNameInput) patientNameInput.value = getPatientName();
 
+    // stress badge
     if (stressVal && stress) stressVal.textContent = stress.value;
+
+    // pain selector
+    bindPainSelector();
+    setPainUI("front", "");
 
     setSubmitLabel();
 
+    // first render
     render();
     renderMonthlyTable();
     drawChartsFor(month?.value || monthNow());
 
+    // resize charts
     window.addEventListener("resize", () => drawChartsFor(month?.value || monthNow()));
 
+    // SW register
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
         navigator.serviceWorker.register("./sw.js").catch(() => {});

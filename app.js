@@ -1,28 +1,24 @@
-
 /* =========================
    Diario Cefalea - app.js (COMPLETO, aggiornato, NON interrotto)
    Funzioni:
-   - Data globale (globalDate) sincronizzata su tutte le schede
-   - Inserimento attacco + Registro con filtri e ricerca
-   - Cards su mobile
-   - Statistiche (canvas) senza librerie
-   - Report mensile: tabella giorno-per-giorno + azioni (Aggiungi/Apri)
-   - Stampa: grafici + tabella report + riquadro Note medico (stile “clinico”)
-   - Condivisione PDF reale via jsPDF + Web Share (WhatsApp tramite pannello condivisione)
-   - Tema: auto/scuro/chiaro
-   - Backup/Import JSON
-   - Export CSV mese/tutto
-   - PWA install prompt + service worker register
-   - ✅ Badge intensità “clinico” (1–3 verde, 4–6 ambra, 7–10 rosso)
-   - ✅ Posizione dolore: selettore con prospettiva + testa cliccabile
-   - ✅ Grafico “Posizione dolore” in Statistiche + Stampa + PDF
+   - Data globale sincronizzata
+   - Inserimento attacco + Registro + Cards mobile
+   - Statistiche canvas (no libs)
+   - Report mensile + stampa + PDF jsPDF + share WhatsApp
+   - Tema auto/scuro/chiaro
+   - Backup/Import + Export CSV
+   - PWA install prompt + SW
+   - ✅ Badge intensità clinico
+   - ✅ Selettore "Posizione del dolore" (Davanti/Sinistra/Destra, multi-selezione sx+dx)
+   - ✅ Grafico "Sedi dolore più frequenti" + inclusione in stampa/PDF/report
    ========================= */
 
 (() => {
   "use strict";
 
   /* ========= Keys ========= */
-  const KEY = "cefalea_attacks_v3";
+  const KEY = "cefalea_attacks_v2";
+  const KEY_OLD = "cefalea_attacks_v1"; // migrazione semplice se serve
   const KEY_NAME = "cefalea_patient_name_v2";
   const KEY_THEME = "cefalea_theme_v1";
   const KEY_GLOBAL_DATE = "cefalea_global_date_v1";
@@ -59,8 +55,8 @@
 
   const chartIntensity = el("chartIntensity");
   const chartTriggers = el("chartTriggers");
-  const chartMeds = el("chartMeds");
   const chartPain = el("chartPain");
+  const chartMeds = el("chartMeds");
   const btnRefreshCharts = el("btnRefreshCharts");
 
   const monthlyRows = el("monthlyRows");
@@ -76,17 +72,38 @@
   const stress = el("stress");
   const stressVal = el("stressVal");
 
-  /* ========= Pain selector elements ========= */
-  const painTabs = Array.from(document.querySelectorAll(".pain-tab"));
-  const painFigures = Array.from(document.querySelectorAll(".pain-figure"));
+  /* ========= ✅ Pain selector elements ========= */
+  const painSegBtns = Array.from(document.querySelectorAll("[data-pain-view]"));
   const painSelectionLabel = el("painSelectionLabel");
-  const btnClearPain = el("btnClearPain");
+  const btnPainClear = el("btnPainClear");
+
+  const headSvgFront = el("headSvgFront");
+  const headSvgLeft = el("headSvgLeft");
+  const headSvgRight = el("headSvgRight");
 
   /* ========= PWA install ========= */
   let deferredPrompt = null;
 
   /* ========= Edit state ========= */
   let EDIT_ID = null;
+
+  /* ========= Pain selector state ========= */
+  let painView = "front"; // front|left|right
+  let painSelected = new Set(); // zone ids: forehead_l, forehead_r, ...
+  const PAIN_ZONE_LABEL = {
+    forehead_l: "Fronte (sx)",
+    forehead_r: "Fronte (dx)",
+    temple_l: "Tempia (sx)",
+    temple_r: "Tempia (dx)",
+    eye_l: "Area occhio (sx)",
+    eye_r: "Area occhio (dx)",
+    cheek_l: "Guancia (sx)",
+    cheek_r: "Guancia (dx)",
+    jaw_l: "Mandibola (sx)",
+    jaw_r: "Mandibola (dx)",
+    neck: "Collo",
+    occipital: "Occipite",
+  };
 
   /* =========================
      Utils
@@ -167,7 +184,46 @@
   }
 
   /* =========================
-     ✅ Badge intensità
+     ✅ Migrazione semplice se la versione precedente sembrava “vuota”
+     (Capita quando si cambia KEY e sembra che “si azzera tutto”)
+     ========================= */
+  function migrateIfNeeded() {
+    try {
+      const current = localStorage.getItem(KEY);
+      if (current && current !== "[]") return;
+
+      const old = localStorage.getItem(KEY_OLD);
+      if (!old) return;
+
+      const arr = JSON.parse(old);
+      if (!Array.isArray(arr) || !arr.length) return;
+
+      // normalizza eventuali campi mancanti
+      const fixed = arr.map((a) => ({
+        id: a.id || cryptoId(),
+        date: a.date,
+        time: a.time || "",
+        intensity: Number(a.intensity || 0),
+        duration: Number(a.duration || 0),
+        meds: Array.isArray(a.meds) ? a.meds : [],
+        efficacy: a.efficacy || "Parziale",
+        triggers: Array.isArray(a.triggers) ? a.triggers : [],
+        stress: Number(a.stress || 0),
+        sleepHours: a.sleepHours ?? null,
+        weather: a.weather || "",
+        foods: a.foods || "",
+        notes: a.notes || "",
+        painZones: Array.isArray(a.painZones) ? a.painZones : [],
+      }));
+
+      save(fixed);
+    } catch {
+      // ignore
+    }
+  }
+
+  /* =========================
+     ✅ Badge intensità (clinico)
      ========================= */
   function intensityClass(intensity) {
     const n = Number(intensity || 0);
@@ -183,101 +239,63 @@
   }
 
   /* =========================
-     ✅ Posizione dolore
+     Pain selector helpers
      ========================= */
-  const PAIN_LABELS = {
-    front_forehead_left: "Fronte (sx)",
-    front_forehead_right: "Fronte (dx)",
-    front_temple_left: "Tempia (sx)",
-    front_temple_right: "Tempia (dx)",
-    front_eye_left: "Perioculare (sx)",
-    front_eye_right: "Perioculare (dx)",
-    front_jaw_left: "Mandibola (sx)",
-    front_jaw_right: "Mandibola (dx)",
-
-    left_forehead: "Fronte (lato sx)",
-    left_temple: "Tempia (lato sx)",
-    left_eye: "Perioculare (lato sx)",
-    left_jaw: "Mandibola (lato sx)",
-    left_neck: "Collo (sx)",
-
-    right_forehead: "Fronte (lato dx)",
-    right_temple: "Tempia (lato dx)",
-    right_eye: "Perioculare (lato dx)",
-    right_jaw: "Mandibola (lato dx)",
-    right_neck: "Collo (dx)",
-
-    back_occipital_left: "Occipitale (sx)",
-    back_occipital_right: "Occipitale (dx)",
-    back_neck_left: "Collo post. (sx)",
-    back_neck_right: "Collo post. (dx)",
-  };
-
-  let painState = { persp: "front", area: "" };
-
-  function painLabel(area) {
-    if (!area) return "—";
-    return PAIN_LABELS[area] || area;
+  function setPainView(view) {
+    painView = view;
+    painSegBtns.forEach((b) => b.classList.toggle("active", b.getAttribute("data-pain-view") === view));
+    headSvgFront?.classList.toggle("active", view === "front");
+    headSvgLeft?.classList.toggle("active", view === "left");
+    headSvgRight?.classList.toggle("active", view === "right");
+    syncPainSelectionToDOM();
   }
 
-  function setPainUI(persp, area) {
-    painState.persp = persp || "front";
-    painState.area = area || "";
-
-    // tabs
-    painTabs.forEach((b) => {
-      const p = b.getAttribute("data-persp");
-      const on = p === painState.persp;
-      b.classList.toggle("active", on);
-      b.setAttribute("aria-selected", on ? "true" : "false");
-    });
-
-    // figures
-    painFigures.forEach((f) => {
-      const key = f.getAttribute("data-figure");
-      f.classList.toggle("active", key === painState.persp);
-    });
-
-    // clear active areas
-    document.querySelectorAll(".pain-area.active").forEach((x) => x.classList.remove("active"));
-
-    // set active area (only inside current figure)
-    if (painState.area) {
-      const fig = document.querySelector(`.pain-figure[data-figure="${painState.persp}"]`);
-      const target = fig?.querySelector(`.pain-area[data-area="${CSS.escape(painState.area)}"]`);
-      target?.classList.add("active");
-    }
-
-    if (painSelectionLabel) {
-      painSelectionLabel.textContent = `Selezione: ${painLabel(painState.area)}`;
-    }
+  function painFriendlyList(zones) {
+    const list = Array.from(new Set(zones || [])).map((z) => PAIN_ZONE_LABEL[z] || z);
+    if (!list.length) return "—";
+    if (list.length <= 3) return list.join(", ");
+    return `${list.slice(0, 3).join(", ")} +${list.length - 3}`;
   }
 
-  function bindPainSelector() {
-    // switch perspective
-    painTabs.forEach((b) => {
-      b.addEventListener("click", () => {
-        const p = b.getAttribute("data-persp") || "front";
-        // se cambi prospettiva, tieni area solo se esiste in quella figura
-        let nextArea = painState.area;
-        const fig = document.querySelector(`.pain-figure[data-figure="${p}"]`);
-        if (nextArea && !fig?.querySelector(`.pain-area[data-area="${CSS.escape(nextArea)}"]`)) {
-          nextArea = "";
-        }
-        setPainUI(p, nextArea);
+  function updatePainLabel() {
+    if (!painSelectionLabel) return;
+    painSelectionLabel.textContent = `Selezione: ${painFriendlyList(Array.from(painSelected))}`;
+  }
+
+  function syncPainSelectionToDOM() {
+    const svgs = [headSvgFront, headSvgLeft, headSvgRight].filter(Boolean);
+    svgs.forEach((svg) => {
+      svg.querySelectorAll("[data-zone]").forEach((node) => {
+        const z = node.getAttribute("data-zone");
+        node.classList.toggle("selected", painSelected.has(z));
+      });
+    });
+    updatePainLabel();
+  }
+
+  function clearPainSelection() {
+    painSelected = new Set();
+    syncPainSelectionToDOM();
+  }
+
+  function bindPainClicks() {
+    const svgs = [headSvgFront, headSvgLeft, headSvgRight].filter(Boolean);
+    svgs.forEach((svg) => {
+      svg.querySelectorAll("[data-zone]").forEach((node) => {
+        node.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const z = node.getAttribute("data-zone");
+          if (!z) return;
+          if (painSelected.has(z)) painSelected.delete(z);
+          else painSelected.add(z);
+          syncPainSelectionToDOM();
+        });
       });
     });
 
-    // click area
-    document.querySelectorAll(".pain-area").forEach((a) => {
-      a.addEventListener("click", () => {
-        const area = a.getAttribute("data-area") || "";
-        setPainUI(painState.persp, area);
-      });
-    });
-
-    // clear
-    btnClearPain?.addEventListener("click", () => setPainUI(painState.persp, ""));
+    painSegBtns.forEach((b) => b.addEventListener("click", () => setPainView(b.getAttribute("data-pain-view") || "front")));
+    btnPainClear?.addEventListener("click", clearPainSelection);
   }
 
   /* =========================
@@ -321,9 +339,8 @@
     clearTriggers();
     if (stress) stress.value = "0";
     if (stressVal) stressVal.textContent = "0";
-
-    // pain reset (keep persp, clear area)
-    setPainUI(painState.persp || "front", "");
+    clearPainSelection();
+    setPainView("front");
   }
   function setDateField(dateISO) {
     const d1 = el("date");
@@ -350,12 +367,15 @@
     if (foods && foods.trim()) out.push("Alimenti");
     return out;
   }
+
   function compactExtras(a) {
     const parts = [];
     if (typeof a.stress === "number" && a.stress > 0) parts.push(`Stress ${a.stress}/10`);
     if (typeof a.sleepHours === "number") parts.push(`Sonno ${a.sleepHours}h`);
     if (a.weather) parts.push(a.weather);
     if (a.foods) parts.push(`Alimenti: ${a.foods}`);
+    const pain = painFriendlyList(a.painZones || []);
+    if (pain !== "—") parts.push(`Sede: ${pain}`);
     return parts.length ? parts.join(" • ") : "—";
   }
 
@@ -483,7 +503,7 @@
         const foods = (a.foods || "").toLowerCase();
         const weather = (a.weather || "").toLowerCase();
         const date = (a.date || "").toLowerCase();
-        const pain = painLabel(a.painArea || "").toLowerCase();
+        const pain = (a.painZones || []).join(" ").toLowerCase();
         return (
           meds.includes(query) ||
           notes.includes(query) ||
@@ -573,8 +593,8 @@
     setSelectedMeds(a.meds || []);
     setSelectedTriggers(a.triggers || []);
 
-    // pain
-    setPainUI(a.painPerspective || "front", a.painArea || "");
+    painSelected = new Set(Array.isArray(a.painZones) ? a.painZones : []);
+    syncPainSelectionToDOM();
 
     switchTo("diario");
     el("card-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -594,7 +614,7 @@
           const note = a.notes?.trim() ? a.notes : "—";
           const trig = a.triggers?.length ? a.triggers.join(", ") : "—";
           const wk = isWeekend(a.date) ? "Weekend" : "Feriale";
-          const pain = painLabel(a.painArea || "");
+          const pain = painFriendlyList(a.painZones || []);
 
           return `
             <tr>
@@ -625,7 +645,6 @@
           const wk = isWeekend(a.date) ? "Weekend" : "Feriale";
           const extras = compactExtras(a);
           const cls = intensityClass(a.intensity);
-          const pain = painLabel(a.painArea || "");
 
           return `
             <div class="card-row">
@@ -641,7 +660,6 @@
               <div class="small"><strong>Farmaci:</strong> ${escapeHtml(meds)}</div>
               <div class="small"><strong>Efficacia:</strong> ${escapeHtml(a.efficacy || "—")}</div>
               <div class="small"><strong>Trigger:</strong> ${escapeHtml(trig)}</div>
-              <div class="small"><strong>Posizione:</strong> ${escapeHtml(pain)}</div>
               <div class="small"><strong>Note:</strong> ${escapeHtml(note)}</div>
 
               <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px">
@@ -654,6 +672,7 @@
         .join("");
     }
 
+    // Bind actions
     document.querySelectorAll("[data-del]").forEach((b) => {
       b.addEventListener("click", () => {
         const id = b.getAttribute("data-del");
@@ -693,12 +712,10 @@
     const trig = Array.from(trigSet).join(", ");
 
     const painSet = new Set();
-    dayAttacks.forEach((a) => {
-      const p = painLabel(a.painArea || "");
-      if (p && p !== "—") painSet.add(p);
-    });
-    const painTxt = Array.from(painSet).join(", ");
+    dayAttacks.forEach((a) => (a.painZones || []).forEach((z) => painSet.add(z)));
+    const pain = painFriendlyList(Array.from(painSet));
 
+    // “peggiore” risposta: Nessuna < Parziale < Buona < Ottima
     const order = ["Nessuna", "Parziale", "Buona", "Ottima"];
     const worstEff = dayAttacks
       .map((a) => a.efficacy || "Parziale")
@@ -717,16 +734,19 @@
       .filter((x) => x && x !== "—")
       .join(" • ");
 
-    const trigNote = [
-      trig ? `Trigger: ${trig}` : "",
-      painTxt ? `Sede: ${painTxt}` : "",
-      extras ? extras : "",
-      notes ? `Note: ${notes}` : "",
-    ]
-      .filter(Boolean)
-      .join(" — ");
+    const blocks = [];
+    if (trig) blocks.push(`Trigger: ${trig}`);
+    if (pain !== "—") blocks.push(`Sede dolore: ${pain}`);
+    if (extras) blocks.push(extras);
+    if (notes) blocks.push(`Note: ${notes}`);
 
-    return { maxInt, sumDur: Number.isFinite(sumDur) ? sumDur : 0, meds, worstEff, trigNote };
+    return {
+      maxInt,
+      sumDur: Number.isFinite(sumDur) ? sumDur : 0,
+      meds,
+      worstEff,
+      trigNote: blocks.length ? blocks.join(" — ") : "—",
+    };
   }
 
   function goToDiaryWithDate(dateISO) {
@@ -838,7 +858,7 @@
       "Farmaci",
       "Efficacia",
       "Trigger",
-      "Posizione_dolore",
+      "Sede_dolore",
       "Stress_0_10",
       "Ore_sonno",
       "Meteo",
@@ -851,6 +871,7 @@
     for (const a of list) {
       const meds = a.meds?.length ? a.meds.join(", ") : "";
       const trig = a.triggers?.length ? a.triggers.join(", ") : "";
+      const pain = (a.painZones || []).join(", ");
       const row = [
         a.date,
         a.time || "",
@@ -859,7 +880,7 @@
         meds,
         a.efficacy || "",
         trig,
-        painLabel(a.painArea || ""),
+        pain,
         typeof a.stress === "number" ? a.stress : "",
         typeof a.sleepHours === "number" ? a.sleepHours : "",
         a.weather || "",
@@ -906,7 +927,12 @@
         const current = load();
         const map = new Map(current.map((x) => [x.id, x]));
         parsed.forEach((x) => {
-          if (x && x.id) map.set(x.id, x);
+          if (x && x.id) {
+            map.set(x.id, {
+              ...x,
+              painZones: Array.isArray(x.painZones) ? x.painZones : [],
+            });
+          }
         });
         const merged = Array.from(map.values());
         merged.sort((x, y) => (y.date + (y.time || "")).localeCompare(x.date + (x.time || "")));
@@ -966,6 +992,7 @@
 
     const maxV = Math.max(1, ...values);
 
+    // Grid + Y labels
     ctx.strokeStyle = options.gridColor;
     ctx.lineWidth = 1;
     ctx.fillStyle = options.textColor;
@@ -989,6 +1016,7 @@
     const gap = 3;
     const barW = Math.max(3, plotW / n - gap);
 
+    // Bars
     for (let i = 0; i < labels.length; i++) {
       const v = values[i] || 0;
       const x = padL + i * (barW + gap);
@@ -998,6 +1026,7 @@
       ctx.fillRect(x, y, barW, h);
     }
 
+    // X labels
     ctx.fillStyle = options.textColor;
     const smallFont = labels.length > 25 ? 9 : 11;
     ctx.font = `${smallFont}px system-ui`;
@@ -1008,7 +1037,7 @@
       if (labels.length > 25 && (i + 1) % 2 === 0) continue;
       const x = padL + i * (barW + gap) + barW / 2;
       const y = H - padB + 24;
-      ctx.fillText(String(labels[i]).slice(0, 14), x, y);
+      ctx.fillText(String(labels[i]).slice(0, 10), x, y);
     }
   }
 
@@ -1025,6 +1054,7 @@
     const list = listForMonth(yyyyMM);
     const dcount = daysInMonth(yyyyMM);
 
+    // Intensità per giorno (max)
     const byDay = attacksByDayForMonth(yyyyMM);
     const labels = [];
     const vals = [];
@@ -1047,6 +1077,7 @@
 
     drawBarChart(chartIntensity, labels, vals, { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar });
 
+    // Trigger top
     const allTrig = [];
     for (const a of list) {
       const t = new Set([...(a.triggers || []), ...deducedTriggers(a)]);
@@ -1060,6 +1091,18 @@
       { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar }
     );
 
+    // ✅ Pain zones top
+    const allPain = [];
+    for (const a of list) (a.painZones || []).forEach((z) => allPain.push(PAIN_ZONE_LABEL[z] || z));
+    const painCounts = topCounts(allPain).slice(0, 10);
+    drawBarChart(
+      chartPain,
+      painCounts.map((x) => x[0]),
+      painCounts.map((x) => x[1]),
+      { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar }
+    );
+
+    // Farmaci top
     const allMeds = [];
     for (const a of list) (a.meds || []).forEach((x) => allMeds.push(x));
     const medsCounts = topCounts(allMeds).slice(0, 10);
@@ -1069,24 +1112,10 @@
       medsCounts.map((x) => x[1]),
       { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar }
     );
-
-    // ✅ Pain chart
-    const allPain = [];
-    for (const a of list) {
-      const p = painLabel(a.painArea || "");
-      allPain.push(p === "—" ? "Non indicata" : p);
-    }
-    const painCounts = topCounts(allPain).slice(0, 10);
-    drawBarChart(
-      chartPain,
-      painCounts.map((x) => x[0]),
-      painCounts.map((x) => x[1]),
-      { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar }
-    );
   }
 
   /* =========================
-     PRINT (browser) – grafici + tabella + note medico
+     PRINT (browser)
      ========================= */
   function buildMonthlyTableHTML_ForPrint(yyyyMM) {
     const dcount = daysInMonth(yyyyMM);
@@ -1131,7 +1160,7 @@
             <th>Durata</th>
             <th>Farmaci</th>
             <th>Risposta</th>
-            <th>Note / Trigger</th>
+            <th>Note / Trigger / Sede</th>
           </tr>
         </thead>
         <tbody>${body}</tbody>
@@ -1145,8 +1174,8 @@
 
     const imgInt = chartIntensity ? chartIntensity.toDataURL("image/png") : "";
     const imgTrig = chartTriggers ? chartTriggers.toDataURL("image/png") : "";
-    const imgMeds = chartMeds ? chartMeds.toDataURL("image/png") : "";
     const imgPain = chartPain ? chartPain.toDataURL("image/png") : "";
+    const imgMeds = chartMeds ? chartMeds.toDataURL("image/png") : "";
 
     const monthList = listForMonth(yyyyMM);
     const hasAnyData = monthList.length > 0;
@@ -1196,6 +1225,8 @@
       }
     `;
 
+    const chartOrEmpty = (img) => (hasAnyData && img ? `<img src="${img}">` : `<p class="ptv-instr">Nessun dato registrato nel mese.</p>`);
+
     return `
       <!doctype html>
       <html lang="it">
@@ -1226,22 +1257,22 @@
 
           <div class="chart">
             <h3>Intensità (max) giorno per giorno</h3>
-            ${hasAnyData && imgInt ? `<img src="${imgInt}" alt="Grafico Intensità">` : `<p class="ptv-instr">Nessun dato registrato nel mese.</p>`}
+            ${chartOrEmpty(imgInt)}
           </div>
 
           <div class="chart">
             <h3>Trigger più frequenti</h3>
-            ${hasAnyData && imgTrig ? `<img src="${imgTrig}" alt="Grafico Trigger">` : `<p class="ptv-instr">Nessun dato registrato nel mese.</p>`}
+            ${chartOrEmpty(imgTrig)}
+          </div>
+
+          <div class="chart">
+            <h3>Sedi dolore più frequenti</h3>
+            ${chartOrEmpty(imgPain)}
           </div>
 
           <div class="chart">
             <h3>Farmaci più usati</h3>
-            ${hasAnyData && imgMeds ? `<img src="${imgMeds}" alt="Grafico Farmaci">` : `<p class="ptv-instr">Nessun dato registrato nel mese.</p>`}
-          </div>
-
-          <div class="chart">
-            <h3>Posizione del dolore</h3>
-            ${hasAnyData && imgPain ? `<img src="${imgPain}" alt="Grafico Posizione dolore">` : `<p class="ptv-instr">Nessun dato registrato nel mese.</p>`}
+            ${chartOrEmpty(imgMeds)}
           </div>
 
           <div class="page-break"></div>
@@ -1265,7 +1296,7 @@
 
       const w = window.open("", "_blank");
       if (!w) {
-        alert("Impossibile aprire la stampa: popup bloccato. Prova da Chrome (non dentro WebView).");
+        alert("Impossibile aprire la stampa: popup bloccato. Prova da Chrome.");
         return;
       }
 
@@ -1301,7 +1332,7 @@
   }
 
   /* =========================
-     PDF reale (jsPDF) + share WhatsApp
+     PDF reale (jsPDF) + share
      ========================= */
   function safeChartDataURL(canvas) {
     try {
@@ -1363,8 +1394,8 @@
 
     const imgInt = safeChartDataURL(chartIntensity);
     const imgTrig = safeChartDataURL(chartTriggers);
-    const imgMeds = safeChartDataURL(chartMeds);
     const imgPain = safeChartDataURL(chartPain);
+    const imgMeds = safeChartDataURL(chartMeds);
 
     const rowsPdf = buildRowsForPdf(yyyyMM);
 
@@ -1426,20 +1457,25 @@
       return boxY + boxH + 10;
     };
 
-    // Pagina 1
+    // Pagina 1: Intensità
     header();
     let y = 55;
-    y = addChartBlock("Intensità (max) giorno per giorno", imgInt, y, 78);
+    y = addChartBlock("Intensità (max) giorno per giorno", imgInt, y, 80);
 
-    // Pagina 2
+    // Pagina 2: Trigger + Sedi dolore
     doc.addPage();
     header();
     y = 55;
-    y = addChartBlock("Trigger più frequenti", imgTrig, y, 58);
-    y = addChartBlock("Farmaci più usati", imgMeds, y, 58);
-    y = addChartBlock("Posizione del dolore", imgPain, y, 58);
+    y = addChartBlock("Trigger più frequenti", imgTrig, y, 65);
+    y = addChartBlock("Sedi dolore più frequenti", imgPain, y, 65);
 
-    // Tabella
+    // Pagina 3: Farmaci
+    doc.addPage();
+    header();
+    y = 55;
+    y = addChartBlock("Farmaci più usati", imgMeds, y, 80);
+
+    // Pagina 4+: Tabella
     doc.addPage();
     header();
     doc.setFont("helvetica", "bold");
@@ -1468,7 +1504,7 @@
       doc.text("Dur.", col.dur + 1.5, ty + 6);
       doc.text("Farmaci", col.med + 1.5, ty + 6);
       doc.text("Risposta", col.rsp + 1.5, ty + 6);
-      doc.text("Note/Trigger", col.note + 1.5, ty + 6);
+      doc.text("Note/Trigger/Sede", col.note + 1.5, ty + 6);
 
       ty += 11;
       doc.setFont("helvetica", "normal");
@@ -1523,7 +1559,7 @@
       ty += 9.5;
     }
 
-    // Note medico
+    // Pagina Note medico
     doc.addPage();
     header();
     doc.setFont("helvetica", "bold");
@@ -1561,6 +1597,7 @@
         return;
       }
 
+      // Fallback download
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -1630,9 +1667,7 @@
         weather: weatherVal,
         foods: foodsVal,
         notes,
-        // ✅ pain
-        painPerspective: painState.persp || "front",
-        painArea: painState.area || "",
+        painZones: Array.from(painSelected),
       };
 
       if (EDIT_ID) {
@@ -1643,6 +1678,9 @@
         resetFormFields();
         setDateField(date);
       }
+
+      // ✅ Forza mese corretto e aggiorna grafici subito
+      if (month) month.value = date.slice(0, 7);
 
       syncAllToDate(date, { pushToMonth: true });
       render();
@@ -1704,11 +1742,13 @@
     if (stressVal) stressVal.textContent = stress.value;
   });
 
+  // Global date changes everything
   globalDate?.addEventListener("change", () => {
     if (!globalDate.value) return;
     syncAllToDate(globalDate.value, { pushToMonth: true });
   });
 
+  // Se cambi la data nel form, aggiorna anche globalDate
   el("date")?.addEventListener("change", () => {
     const v = el("date")?.value;
     if (v) syncAllToDate(v, { pushToMonth: true });
@@ -1742,6 +1782,8 @@
      INIT
      ========================= */
   function init() {
+    migrateIfNeeded();
+
     // theme
     const th = getTheme();
     if (themeSelect) themeSelect.value = th;
@@ -1759,9 +1801,10 @@
     // stress badge
     if (stressVal && stress) stressVal.textContent = stress.value;
 
-    // pain selector
-    bindPainSelector();
-    setPainUI("front", "");
+    // pain selector init
+    bindPainClicks();
+    setPainView("front");
+    updatePainLabel();
 
     setSubmitLabel();
 

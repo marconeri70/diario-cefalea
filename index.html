@@ -71,7 +71,7 @@
         <div class="section-title">
           <div class="section-title-left">
             <h2>Inserisci attacco</h2>
-            <p class="muted">Compila i campi principali e aggiungi trigger / posizione / note.</p>
+            <p class="muted">Compila i campi principali e aggiungi trigger / note se necessario.</p>
           </div>
           <div class="pill">Touch-friendly</div>
         </div>
@@ -81,7 +81,7 @@
             <div class="field">
               <label class="label" for="date">Data</label>
               <input id="date" class="input" type="date" />
-              <div class="hint">Suggerimento: questa data aggiorna automaticamente anche la data globale.</div>
+              <div class="hint">Suggerimento: la data qui aggiorna automaticamente anche la data globale.</div>
             </div>
 
             <div class="field">
@@ -163,227 +163,179 @@
             <div class="hint">Nota: alcuni trigger possono essere dedotti automaticamente (es. stress alto, poco sonno).</div>
           </div>
 
-          <!-- ✅ NUOVO: POSIZIONE DOLORE (clinico, touch) -->
-          <div class="field">
-            <div class="pain-card">
-              <div class="pain-headline">
-                <div>
-                  <div class="pain-kicker">AGGIUNGI DETTAGLI EPISODIO (OPZIONALE)</div>
-                  <div class="pain-title">Posizione del tuo dolore</div>
-                  <div class="pain-sub">Tocca una zona sulla testa: verrà evidenziata.</div>
-                </div>
+          <!-- ✅ POSIZIONE DOLORE (NUOVO) -->
+          <div class="head-card">
+            <div class="head-title">
+              <div>
+                <div class="head-title-top">AGGIUNGI DETTAGLI EPISODIO (OPZIONALE)</div>
+                <div class="head-title-main">Posizione del tuo dolore</div>
+                <div class="muted">Tocca una zona sulla testa: verrà evidenziata. Puoi selezionare anche zone sia a sinistra che a destra.</div>
+              </div>
+            </div>
 
-                <div class="pain-actions">
-                  <div class="chip-soft" id="painSelectionLabel">Selezione: —</div>
-                  <button type="button" id="btnClearPain" class="btn btn-ghost">Pulisci</button>
-                </div>
+            <div class="head-controls">
+              <div class="segmented" role="tablist" aria-label="Scegli prospettiva">
+                <button type="button" class="seg-btn active" data-pain-view="front">Davanti</button>
+                <button type="button" class="seg-btn" data-pain-view="left">Sinistra</button>
+                <button type="button" class="seg-btn" data-pain-view="right">Destra</button>
               </div>
 
-              <div class="pain-tabs" role="tablist" aria-label="Scegli prospettiva">
-                <button type="button" class="pain-tab active" data-persp="front" role="tab" aria-selected="true">Davanti</button>
-                <button type="button" class="pain-tab" data-persp="left" role="tab" aria-selected="false">Sinistra</button>
-                <button type="button" class="pain-tab" data-persp="right" role="tab" aria-selected="false">Destra</button>
-                <button type="button" class="pain-tab" data-persp="back" role="tab" aria-selected="false">Dietro</button>
+              <div class="head-right">
+                <div id="painSelectionLabel" class="pill-soft">Selezione: —</div>
+                <button id="btnPainClear" type="button" class="btn btn-ghost">Pulisci</button>
               </div>
+            </div>
 
-              <div class="pain-stage">
-                <!-- FRONT -->
-                <div class="pain-figure active" data-figure="front" aria-label="Testa - fronte">
-                  <svg class="head-svg" viewBox="0 0 260 300" role="img" aria-label="Selettore dolore fronte">
-                    <defs>
-                      <radialGradient id="gHead1" cx="30%" cy="20%" r="80%">
-                        <stop offset="0%" stop-color="rgba(130,200,255,.95)" />
-                        <stop offset="55%" stop-color="rgba(40,120,210,.85)" />
-                        <stop offset="100%" stop-color="rgba(10,30,70,.85)" />
-                      </radialGradient>
-                      <linearGradient id="gGlow" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stop-color="rgba(79,230,255,.35)" />
-                        <stop offset="100%" stop-color="rgba(43,108,255,.10)" />
-                      </linearGradient>
-                      <filter id="shadowSoft" x="-30%" y="-30%" width="160%" height="160%">
-                        <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(0,0,0,.35)" />
-                      </filter>
-                    </defs>
+            <div class="head-stage" aria-label="Selettore posizione dolore">
+              <!-- FRONT -->
+              <svg id="headSvgFront" class="head-svg active" viewBox="0 0 320 420" role="img" aria-label="Testa - vista frontale">
+                <defs>
+                  <radialGradient id="gHead" cx="35%" cy="20%" r="80%">
+                    <stop offset="0%" stop-color="rgba(120,200,255,.55)"/>
+                    <stop offset="55%" stop-color="rgba(60,140,220,.85)"/>
+                    <stop offset="100%" stop-color="rgba(25,85,150,.95)"/>
+                  </radialGradient>
+                  <radialGradient id="gGlow" cx="50%" cy="15%" r="60%">
+                    <stop offset="0%" stop-color="rgba(255,255,255,.45)"/>
+                    <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+                  </radialGradient>
+                  <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+                    <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(0,0,0,.35)"/>
+                  </filter>
+                </defs>
 
-                    <g filter="url(#shadowSoft)">
-                      <path d="M130 18
-                               C75 18 42 62 42 118
-                               C42 178 62 242 130 280
-                               C198 242 218 178 218 118
-                               C218 62 185 18 130 18Z"
-                            fill="url(#gHead1)" opacity="0.98"/>
-                      <path d="M65 120 C78 92 102 78 130 78 C158 78 182 92 195 120"
-                            fill="none" stroke="rgba(255,255,255,.25)" stroke-width="2" stroke-linecap="round"/>
-                      <path d="M95 150 C110 142 118 142 130 142 C142 142 150 142 165 150"
-                            fill="none" stroke="rgba(255,255,255,.22)" stroke-width="2" stroke-linecap="round"/>
-                      <path d="M112 200 C120 206 140 206 148 200"
-                            fill="none" stroke="rgba(255,255,255,.22)" stroke-width="2" stroke-linecap="round"/>
-                      <circle cx="58" cy="150" r="18" fill="rgba(255,255,255,.10)" stroke="rgba(255,255,255,.20)"/>
-                      <circle cx="202" cy="150" r="18" fill="rgba(255,255,255,.10)" stroke="rgba(255,255,255,.20)"/>
-                      <path d="M130 108 C124 130 124 150 130 164 C136 150 136 130 130 108Z"
-                            fill="rgba(255,255,255,.12)"/>
-                      <path d="M50 70 C78 35 112 26 130 26 C148 26 182 35 210 70"
-                            fill="url(#gGlow)" opacity="0.65"/>
-                    </g>
+                <!-- card background -->
+                <rect x="10" y="10" width="300" height="400" rx="22" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.10)"/>
 
-                    <!-- Aree cliccabili (overlay) -->
-                    <g class="pain-areas">
-                      <!-- fronte sx/dx -->
-                      <path class="pain-area" data-area="front_forehead_left"
-                        d="M130 35 L80 35 C62 55 55 75 55 95 L55 112 C80 98 102 92 130 90 Z"/>
-                      <path class="pain-area" data-area="front_forehead_right"
-                        d="M130 35 L180 35 C198 55 205 75 205 95 L205 112 C180 98 158 92 130 90 Z"/>
+                <!-- head silhouette -->
+                <g transform="translate(0,0)" filter="url(#softShadow)">
+                  <path d="M160 55
+                           C110 55 78 95 78 152
+                           C78 232 96 300 160 350
+                           C224 300 242 232 242 152
+                           C242 95 210 55 160 55Z"
+                        fill="url(#gHead)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
 
-                      <!-- tempia sx/dx -->
-                      <path class="pain-area" data-area="front_temple_left"
-                        d="M55 112 C70 105 82 102 95 102 C88 120 85 135 85 152 C72 152 62 145 55 135 Z"/>
-                      <path class="pain-area" data-area="front_temple_right"
-                        d="M205 112 C190 105 178 102 165 102 C172 120 175 135 175 152 C188 152 198 145 205 135 Z"/>
+                  <!-- highlight -->
+                  <ellipse cx="138" cy="115" rx="70" ry="45" fill="url(#gGlow)" opacity=".85"/>
 
-                      <!-- occhio sx/dx -->
-                      <path class="pain-area" data-area="front_eye_left"
-                        d="M86 140 C98 132 114 132 124 140 C114 150 98 150 86 140 Z"/>
-                      <path class="pain-area" data-area="front_eye_right"
-                        d="M136 140 C146 132 162 132 174 140 C162 150 146 150 136 140 Z"/>
+                  <!-- facial guide (light) -->
+                  <path d="M160 95 L160 320" stroke="rgba(255,255,255,.18)" stroke-width="2" opacity=".55"/>
+                  <path d="M112 160 C130 150 142 150 160 160 C178 150 190 150 208 160"
+                        fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2" opacity=".55"/>
+                  <path d="M130 210 C145 200 175 200 190 210" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2" opacity=".55"/>
+                  <path d="M140 250 C150 260 170 260 180 250" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2" opacity=".55"/>
+                </g>
 
-                      <!-- mandibola sx/dx -->
-                      <path class="pain-area" data-area="front_jaw_left"
-                        d="M72 186 C86 206 104 224 130 238 L130 260 C98 246 78 222 62 196 Z"/>
-                      <path class="pain-area" data-area="front_jaw_right"
-                        d="M188 186 C174 206 156 224 130 238 L130 260 C162 246 182 222 198 196 Z"/>
-                    </g>
-                  </svg>
-                </div>
+                <!-- clickable zones (transparent, highlight on select) -->
+                <!-- Forehead left/right -->
+                <path class="zone" data-zone="forehead_l" d="M160 70 L110 70 Q92 95 92 120 Q120 125 160 120 Z"/>
+                <path class="zone" data-zone="forehead_r" d="M160 70 L210 70 Q228 95 228 120 Q200 125 160 120 Z"/>
 
-                <!-- LEFT -->
-                <div class="pain-figure" data-figure="left" aria-label="Testa - sinistra">
-                  <svg class="head-svg" viewBox="0 0 260 300" role="img" aria-label="Selettore dolore sinistra">
-                    <defs>
-                      <radialGradient id="gHeadL" cx="30%" cy="20%" r="80%">
-                        <stop offset="0%" stop-color="rgba(130,200,255,.95)" />
-                        <stop offset="55%" stop-color="rgba(40,120,210,.85)" />
-                        <stop offset="100%" stop-color="rgba(10,30,70,.85)" />
-                      </radialGradient>
-                      <filter id="shadowSoftL" x="-30%" y="-30%" width="160%" height="160%">
-                        <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(0,0,0,.35)" />
-                      </filter>
-                    </defs>
+                <!-- Temple left/right -->
+                <path class="zone" data-zone="temple_l" d="M92 120 Q85 150 98 175 Q122 160 130 135 Q115 125 92 120 Z"/>
+                <path class="zone" data-zone="temple_r" d="M228 120 Q235 150 222 175 Q198 160 190 135 Q205 125 228 120 Z"/>
 
-                    <g filter="url(#shadowSoftL)">
-                      <path d="M160 28
-                               C95 28 65 70 65 126
-                               C65 190 98 250 160 278
-                               C198 260 214 210 214 150
-                               C214 82 198 28 160 28Z"
-                            fill="url(#gHeadL)"/>
-                      <circle cx="68" cy="160" r="18" fill="rgba(255,255,255,.10)" stroke="rgba(255,255,255,.20)"/>
-                      <path d="M150 120 C140 135 138 150 146 168"
-                            fill="none" stroke="rgba(255,255,255,.22)" stroke-width="2" stroke-linecap="round"/>
-                      <path d="M140 200 C150 206 164 206 174 200"
-                            fill="none" stroke="rgba(255,255,255,.22)" stroke-width="2" stroke-linecap="round"/>
-                    </g>
+                <!-- Eye left/right -->
+                <path class="zone" data-zone="eye_l" d="M108 160 Q130 145 150 160 Q130 170 108 160 Z"/>
+                <path class="zone" data-zone="eye_r" d="M212 160 Q190 145 170 160 Q190 170 212 160 Z"/>
 
-                    <g class="pain-areas">
-                      <path class="pain-area" data-area="left_forehead"
-                        d="M160 40 C120 40 95 60 85 85 C110 80 132 78 160 80 Z"/>
-                      <path class="pain-area" data-area="left_temple"
-                        d="M82 110 C100 100 118 96 138 96 C130 118 128 138 132 158 C112 160 96 148 82 130 Z"/>
-                      <path class="pain-area" data-area="left_eye"
-                        d="M112 140 C124 132 138 132 148 140 C138 150 124 150 112 140 Z"/>
-                      <path class="pain-area" data-area="left_jaw"
-                        d="M92 188 C108 214 130 235 160 250 C146 262 120 250 98 220 Z"/>
-                      <path class="pain-area" data-area="left_neck"
-                        d="M150 255 C140 272 130 284 115 292 C135 292 155 288 172 278 Z"/>
-                    </g>
-                  </svg>
-                </div>
+                <!-- Cheek left/right -->
+                <path class="zone" data-zone="cheek_l" d="M112 175 Q130 170 145 185 Q138 220 120 230 Q100 210 112 175 Z"/>
+                <path class="zone" data-zone="cheek_r" d="M208 175 Q190 170 175 185 Q182 220 200 230 Q220 210 208 175 Z"/>
 
-                <!-- RIGHT -->
-                <div class="pain-figure" data-figure="right" aria-label="Testa - destra">
-                  <svg class="head-svg" viewBox="0 0 260 300" role="img" aria-label="Selettore dolore destra">
-                    <defs>
-                      <radialGradient id="gHeadR" cx="70%" cy="20%" r="80%">
-                        <stop offset="0%" stop-color="rgba(130,200,255,.95)" />
-                        <stop offset="55%" stop-color="rgba(40,120,210,.85)" />
-                        <stop offset="100%" stop-color="rgba(10,30,70,.85)" />
-                      </radialGradient>
-                      <filter id="shadowSoftR" x="-30%" y="-30%" width="160%" height="160%">
-                        <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(0,0,0,.35)" />
-                      </filter>
-                    </defs>
+                <!-- Jaw left/right -->
+                <path class="zone" data-zone="jaw_l" d="M118 235 Q140 245 150 275 Q128 295 112 280 Q102 260 118 235 Z"/>
+                <path class="zone" data-zone="jaw_r" d="M202 235 Q180 245 170 275 Q192 295 208 280 Q218 260 202 235 Z"/>
 
-                    <g filter="url(#shadowSoftR)">
-                      <path d="M100 28
-                               C165 28 195 70 195 126
-                               C195 190 162 250 100 278
-                               C62 260 46 210 46 150
-                               C46 82 62 28 100 28Z"
-                            fill="url(#gHeadR)"/>
-                      <circle cx="192" cy="160" r="18" fill="rgba(255,255,255,.10)" stroke="rgba(255,255,255,.20)"/>
-                      <path d="M110 120 C120 135 122 150 114 168"
-                            fill="none" stroke="rgba(255,255,255,.22)" stroke-width="2" stroke-linecap="round"/>
-                      <path d="M120 200 C110 206 96 206 86 200"
-                            fill="none" stroke="rgba(255,255,255,.22)" stroke-width="2" stroke-linecap="round"/>
-                    </g>
+                <!-- Neck -->
+                <path class="zone" data-zone="neck" d="M145 305 Q160 315 175 305 Q190 340 160 350 Q130 340 145 305 Z"/>
 
-                    <g class="pain-areas">
-                      <path class="pain-area" data-area="right_forehead"
-                        d="M100 40 C140 40 165 60 175 85 C150 80 128 78 100 80 Z"/>
-                      <path class="pain-area" data-area="right_temple"
-                        d="M178 110 C160 100 142 96 122 96 C130 118 132 138 128 158 C148 160 164 148 178 130 Z"/>
-                      <path class="pain-area" data-area="right_eye"
-                        d="M148 140 C136 132 122 132 112 140 C122 150 136 150 148 140 Z"/>
-                      <path class="pain-area" data-area="right_jaw"
-                        d="M168 188 C152 214 130 235 100 250 C114 262 140 250 162 220 Z"/>
-                      <path class="pain-area" data-area="right_neck"
-                        d="M110 255 C120 272 130 284 145 292 C125 292 105 288 88 278 Z"/>
-                    </g>
-                  </svg>
-                </div>
+                <!-- Occipital (back-of-head feeling - selectable even in front) -->
+                <path class="zone" data-zone="occipital" d="M98 178 Q110 260 160 320 Q210 260 222 178 Q210 160 190 150 Q160 165 130 150 Q110 160 98 178 Z"/>
 
-                <!-- BACK -->
-                <div class="pain-figure" data-figure="back" aria-label="Testa - dietro">
-                  <svg class="head-svg" viewBox="0 0 260 300" role="img" aria-label="Selettore dolore dietro">
-                    <defs>
-                      <radialGradient id="gHeadB" cx="50%" cy="20%" r="80%">
-                        <stop offset="0%" stop-color="rgba(130,200,255,.95)" />
-                        <stop offset="55%" stop-color="rgba(40,120,210,.85)" />
-                        <stop offset="100%" stop-color="rgba(10,30,70,.85)" />
-                      </radialGradient>
-                      <filter id="shadowSoftB" x="-30%" y="-30%" width="160%" height="160%">
-                        <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(0,0,0,.35)" />
-                      </filter>
-                    </defs>
+              </svg>
 
-                    <g filter="url(#shadowSoftB)">
-                      <path d="M130 18
-                               C75 18 42 62 42 118
-                               C42 178 62 242 130 280
-                               C198 242 218 178 218 118
-                               C218 62 185 18 130 18Z"
-                            fill="url(#gHeadB)"/>
-                      <path d="M70 70 C100 40 160 40 190 70"
-                            fill="none" stroke="rgba(255,255,255,.18)" stroke-width="3" stroke-linecap="round"/>
-                    </g>
+              <!-- LEFT -->
+              <svg id="headSvgLeft" class="head-svg" viewBox="0 0 320 420" role="img" aria-label="Testa - vista sinistra">
+                <defs>
+                  <radialGradient id="gHeadL" cx="35%" cy="20%" r="85%">
+                    <stop offset="0%" stop-color="rgba(120,200,255,.55)"/>
+                    <stop offset="55%" stop-color="rgba(60,140,220,.85)"/>
+                    <stop offset="100%" stop-color="rgba(25,85,150,.95)"/>
+                  </radialGradient>
+                  <filter id="softShadowL" x="-30%" y="-30%" width="160%" height="160%">
+                    <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(0,0,0,.35)"/>
+                  </filter>
+                </defs>
 
-                    <g class="pain-areas">
-                      <path class="pain-area" data-area="back_occipital_left"
-                        d="M130 90 C100 92 80 108 70 130 C88 142 106 150 130 152 Z"/>
-                      <path class="pain-area" data-area="back_occipital_right"
-                        d="M130 90 C160 92 180 108 190 130 C172 142 154 150 130 152 Z"/>
+                <rect x="10" y="10" width="300" height="400" rx="22" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.10)"/>
 
-                      <path class="pain-area" data-area="back_neck_left"
-                        d="M90 200 C105 228 118 244 130 252 L130 270 C110 262 95 244 78 214 Z"/>
-                      <path class="pain-area" data-area="back_neck_right"
-                        d="M170 200 C155 228 142 244 130 252 L130 270 C150 262 165 244 182 214 Z"/>
-                    </g>
-                  </svg>
-                </div>
-              </div>
+                <g filter="url(#softShadowL)">
+                  <path d="M220 85
+                           C175 55 115 80 105 145
+                           C95 220 120 300 195 345
+                           C250 300 265 235 258 170
+                           C252 125 242 105 220 85Z"
+                        fill="url(#gHeadL)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
 
-              <div class="hint">Suggerimento: se non vuoi indicare la sede, lascia “—”.</div>
+                  <path d="M170 160 Q150 170 145 190" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2" opacity=".6"/>
+                  <path d="M165 225 Q150 235 140 255" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2" opacity=".6"/>
+                </g>
+
+                <!-- clickable zones LEFT side -->
+                <path class="zone" data-zone="forehead_l" d="M210 95 Q175 85 145 110 Q130 135 140 155 Q175 155 210 140 Z"/>
+                <path class="zone" data-zone="temple_l" d="M140 155 Q125 180 135 210 Q155 200 170 180 Q160 162 140 155 Z"/>
+                <path class="zone" data-zone="eye_l" d="M150 175 Q165 165 180 175 Q165 185 150 175 Z"/>
+                <path class="zone" data-zone="cheek_l" d="M145 195 Q165 185 185 200 Q182 235 160 245 Q140 230 145 195 Z"/>
+                <path class="zone" data-zone="jaw_l" d="M150 245 Q175 255 185 280 Q165 305 145 290 Q135 270 150 245 Z"/>
+                <path class="zone" data-zone="neck" d="M185 295 Q200 305 205 330 Q185 350 160 340 Q165 315 185 295 Z"/>
+                <path class="zone" data-zone="occipital" d="M205 110 Q235 135 240 175 Q242 240 212 290 Q190 260 195 210 Q195 155 205 110 Z"/>
+              </svg>
+
+              <!-- RIGHT -->
+              <svg id="headSvgRight" class="head-svg" viewBox="0 0 320 420" role="img" aria-label="Testa - vista destra">
+                <defs>
+                  <radialGradient id="gHeadR" cx="65%" cy="20%" r="85%">
+                    <stop offset="0%" stop-color="rgba(120,200,255,.55)"/>
+                    <stop offset="55%" stop-color="rgba(60,140,220,.85)"/>
+                    <stop offset="100%" stop-color="rgba(25,85,150,.95)"/>
+                  </radialGradient>
+                  <filter id="softShadowR" x="-30%" y="-30%" width="160%" height="160%">
+                    <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(0,0,0,.35)"/>
+                  </filter>
+                </defs>
+
+                <rect x="10" y="10" width="300" height="400" rx="22" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.10)"/>
+
+                <g filter="url(#softShadowR)">
+                  <path d="M100 85
+                           C145 55 205 80 215 145
+                           C225 220 200 300 125 345
+                           C70 300 55 235 62 170
+                           C68 125 78 105 100 85Z"
+                        fill="url(#gHeadR)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
+
+                  <path d="M150 160 Q170 170 175 190" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2" opacity=".6"/>
+                  <path d="M155 225 Q170 235 180 255" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2" opacity=".6"/>
+                </g>
+
+                <!-- clickable zones RIGHT side -->
+                <path class="zone" data-zone="forehead_r" d="M110 95 Q145 85 175 110 Q190 135 180 155 Q145 155 110 140 Z"/>
+                <path class="zone" data-zone="temple_r" d="M180 155 Q195 180 185 210 Q165 200 150 180 Q160 162 180 155 Z"/>
+                <path class="zone" data-zone="eye_r" d="M170 175 Q155 165 140 175 Q155 185 170 175 Z"/>
+                <path class="zone" data-zone="cheek_r" d="M175 195 Q155 185 135 200 Q138 235 160 245 Q180 230 175 195 Z"/>
+                <path class="zone" data-zone="jaw_r" d="M170 245 Q145 255 135 280 Q155 305 175 290 Q185 270 170 245 Z"/>
+                <path class="zone" data-zone="neck" d="M135 295 Q120 305 115 330 Q135 350 160 340 Q155 315 135 295 Z"/>
+                <path class="zone" data-zone="occipital" d="M115 110 Q85 135 80 175 Q78 240 108 290 Q130 260 125 210 Q125 155 115 110 Z"/>
+              </svg>
+            </div>
+
+            <div class="hint" style="margin-top:10px">
+              Suggerimento: se non vuoi indicare la sede, lascia “—”.
             </div>
           </div>
+          <!-- ✅ FINE POSIZIONE DOLORE -->
 
           <div class="field">
             <label class="label" for="notes">Note (opzionale)</label>
@@ -443,7 +395,7 @@
                 <th>Farmaci</th>
                 <th>Risposta</th>
                 <th>Trigger</th>
-                <th>Posizione</th>
+                <th>Sede dolore</th>
                 <th>Note</th>
                 <th style="text-align:right">Azioni</th>
               </tr>
@@ -490,21 +442,20 @@
 
           <div class="chart-card">
             <div class="chart-head">
+              <h3>Sedi del dolore più frequenti</h3>
+              <span class="chip-soft">front/left/right</span>
+            </div>
+            <canvas id="chartPain" class="chart-canvas" aria-label="Grafico sedi dolore"></canvas>
+            <p class="hint">Conteggio delle zone selezionate nella testa.</p>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-head">
               <h3>Farmaci più usati</h3>
               <span class="chip-soft">top 10</span>
             </div>
             <canvas id="chartMeds" class="chart-canvas" aria-label="Grafico farmaci"></canvas>
             <p class="hint">Conteggio dei farmaci assunti durante gli attacchi.</p>
-          </div>
-
-          <!-- ✅ NUOVO: Posizione dolore -->
-          <div class="chart-card">
-            <div class="chart-head">
-              <h3>Posizione del dolore</h3>
-              <span class="chip-soft">top sedi (mese)</span>
-            </div>
-            <canvas id="chartPain" class="chart-canvas" aria-label="Grafico posizione dolore"></canvas>
-            <p class="hint">Conteggio della sede indicata (se non indicata viene conteggiata come “Non indicata”).</p>
           </div>
         </div>
       </div>
@@ -535,7 +486,7 @@
                 <th>Durata</th>
                 <th>Farmaci</th>
                 <th>Risposta</th>
-                <th>Note / Trigger</th>
+                <th>Note / Trigger / Sede dolore</th>
                 <th style="text-align:right">Azioni</th>
               </tr>
             </thead>
@@ -592,7 +543,9 @@
     </section>
   </main>
 
+  <!-- jsPDF per generare un file PDF reale (da condividere su WhatsApp) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
   <script src="./app.js"></script>
 </body>
 </html>

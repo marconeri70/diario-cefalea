@@ -4,8 +4,7 @@
    - Tab con icone
    - Mobile: pulito e touch-friendly
    - Tabelle: scroll orizzontale fluido + cards su mobile
-   - ✅ Selettore “Posizione dolore” (clinico)
-   - ✅ Badge intensità (verde/ambra/rosso)
+   - ✅ Badge intensità + ✅ Selettore testa dolore
    ========================= */
 
 * { box-sizing: border-box; }
@@ -40,9 +39,9 @@ body{
   --violet: #b792ff;
   --danger: #ff4d6d;
 
-  --ok: #35d07f;
+  --good: #52d18a;
   --warn: #ffb74f;
-  --bad: #ff4d4d;
+  --bad:  #ff4d6d;
 
   --bg0: #070b14;
   --bg1: #0b1220;
@@ -343,6 +342,15 @@ p{ margin: 0; }
   background: color-mix(in srgb, var(--primary) 16%, var(--card2));
   border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--line));
 }
+.pill-soft{
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  background: color-mix(in srgb, var(--card2) 86%, transparent);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
 .chip-soft{
   padding: 6px 10px;
   border-radius: 999px;
@@ -412,150 +420,6 @@ p{ margin: 0; }
 }
 .chip input{ accent-color: var(--primary); }
 
-/* ===== ✅ Intensity badges ===== */
-.intensity-badge{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 54px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-weight: 950;
-  letter-spacing: .02em;
-  border: 1px solid var(--line);
-  color: #071022;
-}
-.intensity-low{
-  background: linear-gradient(135deg, rgba(53,208,127,.95), rgba(95,255,180,.75));
-  border-color: rgba(53,208,127,.40);
-}
-.intensity-mid{
-  background: linear-gradient(135deg, rgba(255,183,79,.95), rgba(255,230,160,.75));
-  border-color: rgba(255,183,79,.40);
-}
-.intensity-high{
-  background: linear-gradient(135deg, rgba(255,77,77,.95), rgba(255,160,160,.75));
-  border-color: rgba(255,77,77,.40);
-}
-
-/* Mobile card badge also uses these */
-.badge.intensity-low{ background: linear-gradient(135deg, rgba(53,208,127,.95), rgba(95,255,180,.75)); }
-.badge.intensity-mid{ background: linear-gradient(135deg, rgba(255,183,79,.95), rgba(255,230,160,.75)); }
-.badge.intensity-high{ background: linear-gradient(135deg, rgba(255,77,77,.95), rgba(255,160,160,.75)); }
-
-/* ===== ✅ Pain selector ===== */
-.pain-card{
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--card2) 88%, transparent);
-  padding: 14px;
-  box-shadow: var(--shadow-soft);
-}
-.pain-headline{
-  display:flex;
-  gap:12px;
-  align-items:flex-start;
-  justify-content:space-between;
-  flex-wrap:wrap;
-  margin-bottom: 10px;
-}
-.pain-kicker{
-  font-size: 11px;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 900;
-}
-.pain-title{
-  font-size: 18px;
-  font-weight: 950;
-  margin-top: 2px;
-}
-.pain-sub{
-  color: var(--muted);
-  font-size: 12px;
-  margin-top: 2px;
-}
-.pain-actions{
-  display:flex;
-  gap:10px;
-  align-items:center;
-  justify-content:flex-end;
-  flex-wrap:wrap;
-}
-
-.pain-tabs{
-  display:flex;
-  gap:10px;
-  overflow-x:auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  padding: 6px 0 4px 0;
-}
-.pain-tabs::-webkit-scrollbar{ display:none; }
-
-.pain-tab{
-  border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--card) 75%, transparent);
-  color: var(--text);
-  padding: 10px 14px;
-  border-radius: 14px;
-  cursor:pointer;
-  font-weight: 950;
-  min-width: 120px;
-  transition: transform .08s ease, filter .12s ease, border-color .12s ease;
-  box-shadow: 0 8px 18px rgba(0,0,0,.12);
-}
-.pain-tab:hover{ filter: brightness(1.03); transform: translateY(-1px); }
-.pain-tab:active{ transform: translateY(0); }
-.pain-tab.active{
-  border-color: color-mix(in srgb, var(--primary) 45%, var(--line));
-  background: linear-gradient(135deg,
-    color-mix(in srgb, var(--primary) 75%, rgba(255,255,255,.15)),
-    color-mix(in srgb, var(--cyan) 35%, var(--primary) 65%)
-  );
-  color: #071022;
-}
-
-.pain-stage{
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  margin-top: 10px;
-}
-.pain-figure{
-  display:none;
-  width: min(520px, 100%);
-  border-radius: var(--radius);
-  border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--card) 78%, transparent);
-  padding: 12px;
-}
-.pain-figure.active{ display:block; }
-
-.head-svg{
-  width: 100%;
-  height: auto;
-  display:block;
-}
-
-.pain-areas .pain-area{
-  fill: rgba(255, 70, 70, 0.0);
-  stroke: rgba(255,255,255,.12);
-  stroke-width: 1.2;
-  cursor: pointer;
-  transition: fill .12s ease, stroke .12s ease, transform .12s ease;
-}
-.pain-areas .pain-area:hover{
-  fill: rgba(255, 70, 70, 0.18);
-  stroke: rgba(255,255,255,.28);
-}
-.pain-areas .pain-area.active{
-  fill: rgba(255, 70, 70, 0.38);
-  stroke: rgba(255, 220, 220, .60);
-  filter: drop-shadow(0 8px 14px rgba(0,0,0,.22));
-}
-
 /* ===== Filters / tables ===== */
 .filters{
   margin-top: 10px;
@@ -573,6 +437,7 @@ p{ margin: 0; }
   flex-wrap: wrap;
 }
 
+/* Scroll: important on phone and small screens */
 .table-wrap{
   width: 100%;
   overflow-x: auto;
@@ -627,6 +492,36 @@ p{ margin: 0; }
   font-weight: 900;
 }
 
+/* ===== ✅ Intensità badge (clinico) ===== */
+.intensity-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width: 64px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-weight: 950;
+  letter-spacing: .02em;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--card2) 86%, transparent);
+}
+.intensity-low{
+  background: linear-gradient(135deg, color-mix(in srgb, var(--good) 80%, #fff 20%), rgba(255,255,255,.10));
+  color: #062112;
+  border-color: color-mix(in srgb, var(--good) 45%, var(--line));
+}
+.intensity-mid{
+  background: linear-gradient(135deg, color-mix(in srgb, var(--warn) 85%, #fff 15%), rgba(255,255,255,.12));
+  color: #2b1a04;
+  border-color: color-mix(in srgb, var(--warn) 50%, var(--line));
+}
+.intensity-high{
+  background: linear-gradient(135deg, color-mix(in srgb, var(--bad) 85%, #fff 15%), rgba(255,255,255,.10));
+  color: #2a0811;
+  border-color: color-mix(in srgb, var(--bad) 50%, var(--line));
+}
+
 /* ===== Cards (mobile list) ===== */
 .cards{ display: none; margin-top: 12px; }
 .card-row{
@@ -647,10 +542,101 @@ p{ margin: 0; }
   border-radius: 14px;
   padding: 8px 10px;
   font-weight: 950;
-  color: #071022;
+  border: 1px solid var(--line);
 }
 .small{ font-size: 12px; color: var(--muted); }
 .card-row strong{ color: var(--text); }
+
+/* ===== ✅ Selettore testa dolore ===== */
+.head-card{
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: color-mix(in srgb, var(--card2) 88%, transparent);
+}
+.head-title-top{
+  font-size: 11px;
+  letter-spacing: .12em;
+  font-weight: 900;
+  color: var(--muted);
+}
+.head-title-main{
+  margin-top: 4px;
+  font-weight: 950;
+  font-size: 20px;
+}
+.head-controls{
+  margin-top: 12px;
+  display:flex;
+  gap: 10px;
+  align-items:center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.head-right{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.segmented{
+  display:flex;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--card2) 86%, transparent);
+}
+.seg-btn{
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 950;
+  cursor:pointer;
+  color: var(--text);
+  background: transparent;
+}
+.seg-btn.active{
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--primary) 90%, #fff 10%),
+    color-mix(in srgb, var(--cyan) 45%, var(--primary) 55%)
+  );
+  color: #071022;
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--line));
+}
+
+.head-stage{
+  margin-top: 12px;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+.head-svg{
+  width: min(560px, 100%);
+  height: auto;
+  display:none;
+}
+.head-svg.active{ display:block; }
+
+.zone{
+  fill: rgba(255,255,255,0.01);
+  stroke: rgba(255,255,255,.18);
+  stroke-width: 1.2;
+  cursor: pointer;
+  transition: filter .12s ease, fill .12s ease, stroke .12s ease, opacity .12s ease;
+}
+.zone:hover{
+  fill: rgba(255,255,255,.10);
+  stroke: rgba(255,255,255,.30);
+}
+.zone.selected{
+  fill: rgba(255, 86, 120, .48);
+  stroke: rgba(255, 86, 120, .92);
+  filter: drop-shadow(0 6px 10px rgba(255, 86, 120, .25));
+}
 
 /* ===== Charts ===== */
 .chart-grid{
@@ -697,7 +683,6 @@ p{ margin: 0; }
   .field.actions{ grid-column: span 2; }
   .filter-row{ grid-template-columns: 1fr; }
   .logo{ width: 120px; }
-  .pain-tab{ min-width: 110px; }
 }
 
 @media (max-width: 720px){
@@ -708,11 +693,10 @@ p{ margin: 0; }
   .header-field{ flex: 1; min-width: 140px; }
   .chart-canvas{ height: 280px; }
 
+  /* On mobile show cards list instead of wide table */
   .table{ min-width: 0; }
   .table-wrap{ display: none; }
   .cards{ display: block; }
-
-  .pain-actions{ width:100%; justify-content:space-between; }
 }
 
 @media (max-width: 420px){

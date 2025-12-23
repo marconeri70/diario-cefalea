@@ -1,3 +1,4 @@
+
 /* =========================
    Diario Cefalea - app.js (COMPLETO, aggiornato, NON interrotto)
    Funzioni:
@@ -13,15 +14,15 @@
    - Export CSV mese/tutto
    - PWA install prompt + service worker register
    - ✅ Badge intensità “clinico” (1–3 verde, 4–6 ambra, 7–10 rosso)
-   - ✅ Pain Map (testa) multi-zona + multi-lato (sx + dx insieme)
-   - ✅ Statistica “Sedi dolore più frequenti” + PDF/Print include grafico
+   - ✅ Posizione dolore: selettore con prospettiva + testa cliccabile
+   - ✅ Grafico “Posizione dolore” in Statistiche + Stampa + PDF
    ========================= */
 
 (() => {
   "use strict";
 
   /* ========= Keys ========= */
-  const KEY = "cefalea_attacks_v2";
+  const KEY = "cefalea_attacks_v3";
   const KEY_NAME = "cefalea_patient_name_v2";
   const KEY_THEME = "cefalea_theme_v1";
   const KEY_GLOBAL_DATE = "cefalea_global_date_v1";
@@ -29,7 +30,7 @@
   /* ========= DOM helpers ========= */
   const el = (id) => document.getElementById(id);
 
-  /* ========= Elements (come da index.html) ========= */
+  /* ========= Elements ========= */
   const btnInstall = el("btnInstall");
   const globalDate = el("globalDate");
   const month = el("month");
@@ -59,7 +60,7 @@
   const chartIntensity = el("chartIntensity");
   const chartTriggers = el("chartTriggers");
   const chartMeds = el("chartMeds");
-  const chartPainZones = el("chartPainZones");
+  const chartPain = el("chartPain");
   const btnRefreshCharts = el("btnRefreshCharts");
 
   const monthlyRows = el("monthlyRows");
@@ -75,12 +76,11 @@
   const stress = el("stress");
   const stressVal = el("stressVal");
 
-  /* ========= Pain Map elements ========= */
-  const painSelectionText = el("painSelectionText");
-  const painClearBtn = el("painClear");
-  const painSegs = Array.from(document.querySelectorAll(".seg[data-painview]"));
-  const painViews = Array.from(document.querySelectorAll(".painmap-view[data-painview]"));
-  const painZonesEls = Array.from(document.querySelectorAll(".zone[data-zone]"));
+  /* ========= Pain selector elements ========= */
+  const painTabs = Array.from(document.querySelectorAll(".pain-tab"));
+  const painFigures = Array.from(document.querySelectorAll(".pain-figure"));
+  const painSelectionLabel = el("painSelectionLabel");
+  const btnClearPain = el("btnClearPain");
 
   /* ========= PWA install ========= */
   let deferredPrompt = null;
@@ -88,62 +88,8 @@
   /* ========= Edit state ========= */
   let EDIT_ID = null;
 
-  /* ========= Pain Map state ========= */
-  let painView = "front";
-  const painZones = new Set(); // multi-select
-
-  const ZONE_LABELS = {
-    fronte_sx: "Fronte (sx)",
-    fronte_dx: "Fronte (dx)",
-    tempia_sx: "Tempia (sx)",
-    tempia_dx: "Tempia (dx)",
-    orbitale_sx: "Orbitale (sx)",
-    orbitale_dx: "Orbitale (dx)",
-    zigomo_sx: "Zigomo (sx)",
-    zigomo_dx: "Zigomo (dx)",
-    mandibola_sx: "Mandibola (sx)",
-    mandibola_dx: "Mandibola (dx)",
-    occipite_sx: "Occipite (sx)",
-    occipite_dx: "Occipite (dx)",
-    cervicale: "Cervicale",
-  };
-
-  function zoneLabel(z) {
-    return ZONE_LABELS[z] || z;
-  }
-  function zonesToText(arr) {
-    const list = Array.from(arr || []).filter(Boolean);
-    if (!list.length) return "—";
-    return list.map(zoneLabel).join(", ");
-  }
-
-  function setPainView(next) {
-    painView = next || "front";
-    painSegs.forEach((b) => b.classList.toggle("active", b.getAttribute("data-painview") === painView));
-    painViews.forEach((v) => v.classList.toggle("active", v.getAttribute("data-painview") === painView));
-  }
-
-  function updatePainUI() {
-    painZonesEls.forEach((p) => {
-      const z = p.getAttribute("data-zone");
-      p.classList.toggle("selected", painZones.has(z));
-    });
-    if (painSelectionText) painSelectionText.textContent = zonesToText(painZones);
-  }
-
-  function clearPainSelection() {
-    painZones.clear();
-    updatePainUI();
-  }
-
-  function setPainSelectionFromArray(arr) {
-    painZones.clear();
-    (arr || []).forEach((z) => painZones.add(z));
-    updatePainUI();
-  }
-
   /* =========================
-     Utils: date / text
+     Utils
      ========================= */
   function isoToday() {
     const d = new Date();
@@ -221,7 +167,7 @@
   }
 
   /* =========================
-     ✅ Badge intensità (clinico)
+     ✅ Badge intensità
      ========================= */
   function intensityClass(intensity) {
     const n = Number(intensity || 0);
@@ -234,6 +180,104 @@
     const cls = intensityClass(intensity);
     const n = Number(intensity || 0);
     return `<span class="intensity-badge intensity-${cls}">${n}/10</span>`;
+  }
+
+  /* =========================
+     ✅ Posizione dolore
+     ========================= */
+  const PAIN_LABELS = {
+    front_forehead_left: "Fronte (sx)",
+    front_forehead_right: "Fronte (dx)",
+    front_temple_left: "Tempia (sx)",
+    front_temple_right: "Tempia (dx)",
+    front_eye_left: "Perioculare (sx)",
+    front_eye_right: "Perioculare (dx)",
+    front_jaw_left: "Mandibola (sx)",
+    front_jaw_right: "Mandibola (dx)",
+
+    left_forehead: "Fronte (lato sx)",
+    left_temple: "Tempia (lato sx)",
+    left_eye: "Perioculare (lato sx)",
+    left_jaw: "Mandibola (lato sx)",
+    left_neck: "Collo (sx)",
+
+    right_forehead: "Fronte (lato dx)",
+    right_temple: "Tempia (lato dx)",
+    right_eye: "Perioculare (lato dx)",
+    right_jaw: "Mandibola (lato dx)",
+    right_neck: "Collo (dx)",
+
+    back_occipital_left: "Occipitale (sx)",
+    back_occipital_right: "Occipitale (dx)",
+    back_neck_left: "Collo post. (sx)",
+    back_neck_right: "Collo post. (dx)",
+  };
+
+  let painState = { persp: "front", area: "" };
+
+  function painLabel(area) {
+    if (!area) return "—";
+    return PAIN_LABELS[area] || area;
+  }
+
+  function setPainUI(persp, area) {
+    painState.persp = persp || "front";
+    painState.area = area || "";
+
+    // tabs
+    painTabs.forEach((b) => {
+      const p = b.getAttribute("data-persp");
+      const on = p === painState.persp;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-selected", on ? "true" : "false");
+    });
+
+    // figures
+    painFigures.forEach((f) => {
+      const key = f.getAttribute("data-figure");
+      f.classList.toggle("active", key === painState.persp);
+    });
+
+    // clear active areas
+    document.querySelectorAll(".pain-area.active").forEach((x) => x.classList.remove("active"));
+
+    // set active area (only inside current figure)
+    if (painState.area) {
+      const fig = document.querySelector(`.pain-figure[data-figure="${painState.persp}"]`);
+      const target = fig?.querySelector(`.pain-area[data-area="${CSS.escape(painState.area)}"]`);
+      target?.classList.add("active");
+    }
+
+    if (painSelectionLabel) {
+      painSelectionLabel.textContent = `Selezione: ${painLabel(painState.area)}`;
+    }
+  }
+
+  function bindPainSelector() {
+    // switch perspective
+    painTabs.forEach((b) => {
+      b.addEventListener("click", () => {
+        const p = b.getAttribute("data-persp") || "front";
+        // se cambi prospettiva, tieni area solo se esiste in quella figura
+        let nextArea = painState.area;
+        const fig = document.querySelector(`.pain-figure[data-figure="${p}"]`);
+        if (nextArea && !fig?.querySelector(`.pain-area[data-area="${CSS.escape(nextArea)}"]`)) {
+          nextArea = "";
+        }
+        setPainUI(p, nextArea);
+      });
+    });
+
+    // click area
+    document.querySelectorAll(".pain-area").forEach((a) => {
+      a.addEventListener("click", () => {
+        const area = a.getAttribute("data-area") || "";
+        setPainUI(painState.persp, area);
+      });
+    });
+
+    // clear
+    btnClearPain?.addEventListener("click", () => setPainUI(painState.persp, ""));
   }
 
   /* =========================
@@ -275,11 +319,11 @@
     const medsSel = el("meds");
     if (medsSel) Array.from(medsSel.options).forEach((o) => (o.selected = false));
     clearTriggers();
-    clearPainSelection();
-    setPainView("front");
-
     if (stress) stress.value = "0";
     if (stressVal) stressVal.textContent = "0";
+
+    // pain reset (keep persp, clear area)
+    setPainUI(painState.persp || "front", "");
   }
   function setDateField(dateISO) {
     const d1 = el("date");
@@ -439,7 +483,7 @@
         const foods = (a.foods || "").toLowerCase();
         const weather = (a.weather || "").toLowerCase();
         const date = (a.date || "").toLowerCase();
-        const zones = (a.painZones || []).map(zoneLabel).join(" ").toLowerCase();
+        const pain = painLabel(a.painArea || "").toLowerCase();
         return (
           meds.includes(query) ||
           notes.includes(query) ||
@@ -447,7 +491,7 @@
           foods.includes(query) ||
           weather.includes(query) ||
           date.includes(query) ||
-          zones.includes(query)
+          pain.includes(query)
         );
       });
     }
@@ -529,8 +573,8 @@
     setSelectedMeds(a.meds || []);
     setSelectedTriggers(a.triggers || []);
 
-    setPainSelectionFromArray(a.painZones || []);
-    setPainView("front");
+    // pain
+    setPainUI(a.painPerspective || "front", a.painArea || "");
 
     switchTo("diario");
     el("card-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -538,7 +582,7 @@
   }
 
   /* =========================
-     Render: Registro (tabella + cards)
+     Render: Registro
      ========================= */
   function render() {
     const list = filteredList();
@@ -549,8 +593,8 @@
           const meds = a.meds?.length ? a.meds.join(", ") : "—";
           const note = a.notes?.trim() ? a.notes : "—";
           const trig = a.triggers?.length ? a.triggers.join(", ") : "—";
-          const zones = a.painZones?.length ? zonesToText(a.painZones) : "—";
           const wk = isWeekend(a.date) ? "Weekend" : "Feriale";
+          const pain = painLabel(a.painArea || "");
 
           return `
             <tr>
@@ -559,7 +603,8 @@
               <td>${Number(a.duration || 0)} h</td>
               <td>${escapeHtml(meds)}</td>
               <td>${escapeHtml(a.efficacy || "—")}</td>
-              <td>${escapeHtml(trig)}<div class="muted small">Sede: ${escapeHtml(zones)}</div></td>
+              <td>${escapeHtml(trig)}</td>
+              <td>${escapeHtml(pain)}</td>
               <td>${escapeHtml(note)}</td>
               <td style="text-align:right; white-space:nowrap">
                 <button class="iconbtn" data-edit="${a.id}" title="Modifica">✏️</button>
@@ -577,10 +622,10 @@
           const meds = a.meds?.length ? a.meds.join(", ") : "—";
           const note = a.notes?.trim() ? a.notes : "—";
           const trig = a.triggers?.length ? a.triggers.join(", ") : "—";
-          const zones = a.painZones?.length ? zonesToText(a.painZones) : "—";
           const wk = isWeekend(a.date) ? "Weekend" : "Feriale";
           const extras = compactExtras(a);
           const cls = intensityClass(a.intensity);
+          const pain = painLabel(a.painArea || "");
 
           return `
             <div class="card-row">
@@ -596,7 +641,7 @@
               <div class="small"><strong>Farmaci:</strong> ${escapeHtml(meds)}</div>
               <div class="small"><strong>Efficacia:</strong> ${escapeHtml(a.efficacy || "—")}</div>
               <div class="small"><strong>Trigger:</strong> ${escapeHtml(trig)}</div>
-              <div class="small"><strong>Sede:</strong> ${escapeHtml(zones)}</div>
+              <div class="small"><strong>Posizione:</strong> ${escapeHtml(pain)}</div>
               <div class="small"><strong>Note:</strong> ${escapeHtml(note)}</div>
 
               <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px">
@@ -609,7 +654,6 @@
         .join("");
     }
 
-    // Bind actions
     document.querySelectorAll("[data-del]").forEach((b) => {
       b.addEventListener("click", () => {
         const id = b.getAttribute("data-del");
@@ -648,11 +692,13 @@
     dayAttacks.forEach((a) => (a.triggers || []).forEach((t) => trigSet.add(t)));
     const trig = Array.from(trigSet).join(", ");
 
-    const zonesSet = new Set();
-    dayAttacks.forEach((a) => (a.painZones || []).forEach((z) => zonesSet.add(z)));
-    const zones = Array.from(zonesSet);
+    const painSet = new Set();
+    dayAttacks.forEach((a) => {
+      const p = painLabel(a.painArea || "");
+      if (p && p !== "—") painSet.add(p);
+    });
+    const painTxt = Array.from(painSet).join(", ");
 
-    // “peggiore” risposta: Nessuna < Parziale < Buona < Ottima
     const order = ["Nessuna", "Parziale", "Buona", "Ottima"];
     const worstEff = dayAttacks
       .map((a) => a.efficacy || "Parziale")
@@ -671,19 +717,16 @@
       .filter((x) => x && x !== "—")
       .join(" • ");
 
-    const zoneNote = zones.length ? `Sede: ${zonesToText(zones)}` : "";
-
-    const trigNote = [zoneNote, trig ? `Trigger: ${trig}` : "", extras ? extras : "", notes ? `Note: ${notes}` : ""]
+    const trigNote = [
+      trig ? `Trigger: ${trig}` : "",
+      painTxt ? `Sede: ${painTxt}` : "",
+      extras ? extras : "",
+      notes ? `Note: ${notes}` : "",
+    ]
       .filter(Boolean)
       .join(" — ");
 
-    return {
-      maxInt,
-      sumDur: Number.isFinite(sumDur) ? sumDur : 0,
-      meds,
-      worstEff,
-      trigNote,
-    };
+    return { maxInt, sumDur: Number.isFinite(sumDur) ? sumDur : 0, meds, worstEff, trigNote };
   }
 
   function goToDiaryWithDate(dateISO) {
@@ -795,7 +838,7 @@
       "Farmaci",
       "Efficacia",
       "Trigger",
-      "Sede_dolore",
+      "Posizione_dolore",
       "Stress_0_10",
       "Ore_sonno",
       "Meteo",
@@ -808,7 +851,6 @@
     for (const a of list) {
       const meds = a.meds?.length ? a.meds.join(", ") : "";
       const trig = a.triggers?.length ? a.triggers.join(", ") : "";
-      const zones = a.painZones?.length ? zonesToText(a.painZones) : "";
       const row = [
         a.date,
         a.time || "",
@@ -817,7 +859,7 @@
         meds,
         a.efficacy || "",
         trig,
-        zones,
+        painLabel(a.painArea || ""),
         typeof a.stress === "number" ? a.stress : "",
         typeof a.sleepHours === "number" ? a.sleepHours : "",
         a.weather || "",
@@ -924,7 +966,6 @@
 
     const maxV = Math.max(1, ...values);
 
-    // Grid + Y labels
     ctx.strokeStyle = options.gridColor;
     ctx.lineWidth = 1;
     ctx.fillStyle = options.textColor;
@@ -948,22 +989,15 @@
     const gap = 3;
     const barW = Math.max(3, plotW / n - gap);
 
-    // Bars (rounded + optional per-bar color)
     for (let i = 0; i < labels.length; i++) {
       const v = values[i] || 0;
       const x = padL + i * (barW + gap);
       const h = (v / maxV) * plotH;
       const y = padT + (plotH - h);
-
-      const c = typeof options.barColor === "function" ? options.barColor(v, i) : options.barColor;
-
-      ctx.fillStyle = c;
-      const r = Math.min(6, barW / 2, h / 2);
-      roundRect(ctx, x, y, barW, h, r);
-      ctx.fill();
+      ctx.fillStyle = options.barColor;
+      ctx.fillRect(x, y, barW, h);
     }
 
-    // X labels
     ctx.fillStyle = options.textColor;
     const smallFont = labels.length > 25 ? 9 : 11;
     ctx.font = `${smallFont}px system-ui`;
@@ -974,23 +1008,8 @@
       if (labels.length > 25 && (i + 1) % 2 === 0) continue;
       const x = padL + i * (barW + gap) + barW / 2;
       const y = H - padB + 24;
-      ctx.fillText(String(labels[i]).slice(0, 10), x, y);
+      ctx.fillText(String(labels[i]).slice(0, 14), x, y);
     }
-  }
-
-  function roundRect(ctx, x, y, w, h, r) {
-    const rr = Math.max(0, r || 0);
-    ctx.beginPath();
-    ctx.moveTo(x + rr, y);
-    ctx.lineTo(x + w - rr, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
-    ctx.lineTo(x + w, y + h - rr);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
-    ctx.lineTo(x + rr, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
-    ctx.lineTo(x, y + rr);
-    ctx.quadraticCurveTo(x, y, x + rr, y);
-    ctx.closePath();
   }
 
   function topCounts(items) {
@@ -1024,24 +1043,9 @@
     const bg = cssColor("--card", "#111a2d");
     const grid = cssColor("--line", "#24314f");
     const txt = cssColor("--muted", "#a6b3d1");
-    const primary = cssColor("--primary", "#2b6cff");
+    const bar = cssColor("--primary", "#2b6cff");
 
-    const ok = cssColor("--ok", "#34d399");
-    const warn = cssColor("--warn", "#ffb74f");
-    const bad = cssColor("--bad", "#ff4d6d");
-
-    // Intensità: colore per severità
-    drawBarChart(chartIntensity, labels, vals, {
-      bgColor: bg,
-      gridColor: grid,
-      textColor: txt,
-      barColor: (v) => {
-        if (v >= 7) return bad;
-        if (v >= 4) return warn;
-        if (v >= 1) return ok;
-        return primary;
-      },
-    });
+    drawBarChart(chartIntensity, labels, vals, { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar });
 
     const allTrig = [];
     for (const a of list) {
@@ -1053,7 +1057,7 @@
       chartTriggers,
       trigCounts.map((x) => x[0]),
       trigCounts.map((x) => x[1]),
-      { bgColor: bg, gridColor: grid, textColor: txt, barColor: primary }
+      { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar }
     );
 
     const allMeds = [];
@@ -1063,18 +1067,21 @@
       chartMeds,
       medsCounts.map((x) => String(x[0]).replace(" (FANS)", "")),
       medsCounts.map((x) => x[1]),
-      { bgColor: bg, gridColor: grid, textColor: txt, barColor: primary }
+      { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar }
     );
 
-    // Pain zones
-    const allZones = [];
-    for (const a of list) (a.painZones || []).forEach((z) => allZones.push(zoneLabel(z)));
-    const zoneCounts = topCounts(allZones).slice(0, 10);
+    // ✅ Pain chart
+    const allPain = [];
+    for (const a of list) {
+      const p = painLabel(a.painArea || "");
+      allPain.push(p === "—" ? "Non indicata" : p);
+    }
+    const painCounts = topCounts(allPain).slice(0, 10);
     drawBarChart(
-      chartPainZones,
-      zoneCounts.map((x) => x[0]),
-      zoneCounts.map((x) => x[1]),
-      { bgColor: bg, gridColor: grid, textColor: txt, barColor: primary }
+      chartPain,
+      painCounts.map((x) => x[0]),
+      painCounts.map((x) => x[1]),
+      { bgColor: bg, gridColor: grid, textColor: txt, barColor: bar }
     );
   }
 
@@ -1124,7 +1131,7 @@
             <th>Durata</th>
             <th>Farmaci</th>
             <th>Risposta</th>
-            <th>Note / Trigger / Sede</th>
+            <th>Note / Trigger</th>
           </tr>
         </thead>
         <tbody>${body}</tbody>
@@ -1139,7 +1146,7 @@
     const imgInt = chartIntensity ? chartIntensity.toDataURL("image/png") : "";
     const imgTrig = chartTriggers ? chartTriggers.toDataURL("image/png") : "";
     const imgMeds = chartMeds ? chartMeds.toDataURL("image/png") : "";
-    const imgZones = chartPainZones ? chartPainZones.toDataURL("image/png") : "";
+    const imgPain = chartPain ? chartPain.toDataURL("image/png") : "";
 
     const monthList = listForMonth(yyyyMM);
     const hasAnyData = monthList.length > 0;
@@ -1233,8 +1240,8 @@
           </div>
 
           <div class="chart">
-            <h3>Sedi del dolore più frequenti</h3>
-            ${hasAnyData && imgZones ? `<img src="${imgZones}" alt="Grafico Sedi dolore">` : `<p class="ptv-instr">Nessun dato registrato nel mese.</p>`}
+            <h3>Posizione del dolore</h3>
+            ${hasAnyData && imgPain ? `<img src="${imgPain}" alt="Grafico Posizione dolore">` : `<p class="ptv-instr">Nessun dato registrato nel mese.</p>`}
           </div>
 
           <div class="page-break"></div>
@@ -1294,4 +1301,485 @@
   }
 
   /* =========================
-     PDF reale (jsPDF
+     PDF reale (jsPDF) + share WhatsApp
+     ========================= */
+  function safeChartDataURL(canvas) {
+    try {
+      if (!canvas) return "";
+      ensureCanvasSize(canvas);
+      return canvas.toDataURL("image/png");
+    } catch {
+      return "";
+    }
+  }
+
+  function buildRowsForPdf(yyyyMM) {
+    const dcount = daysInMonth(yyyyMM);
+    const map = attacksByDayForMonth(yyyyMM);
+    const out = [];
+
+    for (let day = 1; day <= dcount; day++) {
+      const iso = isoOfDay(yyyyMM, day);
+      const d = new Date(iso + "T00:00:00");
+      const dow = d.toLocaleDateString("it-IT", { weekday: "short" });
+      const wk = isWeekend(iso) ? "weekend" : "feriale";
+      const dayAttacks = map.get(iso) || [];
+
+      if (!dayAttacks.length) {
+        out.push({
+          dayLabel: `${String(day).padStart(2, "0")}/${yyyyMM.slice(5, 7)} (${dow})`,
+          intensity: "—",
+          duration: "—",
+          meds: "—",
+          resp: "—",
+          note: "—",
+          wk,
+        });
+      } else {
+        const s = summarizeDayAttacks(dayAttacks);
+        out.push({
+          dayLabel: `${String(day).padStart(2, "0")}/${yyyyMM.slice(5, 7)} (${dow})`,
+          intensity: `${s.maxInt}/10`,
+          duration: `${(Math.round(s.sumDur * 10) / 10).toFixed(1)} h`,
+          meds: s.meds || "—",
+          resp: s.worstEff || "—",
+          note: s.trigNote || "—",
+          wk,
+        });
+      }
+    }
+    return out;
+  }
+
+  async function generateMonthlyPdfBlob(yyyyMM) {
+    const jspdf = window.jspdf?.jsPDF;
+    if (!jspdf) throw new Error("jsPDF non disponibile");
+
+    drawChartsFor(yyyyMM);
+    renderMonthlyTable();
+
+    const nome = getPatientName() || "__________________________";
+    const label = monthLabel(yyyyMM);
+
+    const imgInt = safeChartDataURL(chartIntensity);
+    const imgTrig = safeChartDataURL(chartTriggers);
+    const imgMeds = safeChartDataURL(chartMeds);
+    const imgPain = safeChartDataURL(chartPain);
+
+    const rowsPdf = buildRowsForPdf(yyyyMM);
+
+    const doc = new jspdf({ unit: "mm", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+
+    const margin = 12;
+    const contentW = pageW - margin * 2;
+
+    const header = () => {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text("FONDAZIONE PTV — POLICLINICO TOR VERGATA", margin, 14);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text("Centro Cefalee — Referente: Dr.ssa Maria Albanese", margin, 19);
+
+      doc.setDrawColor(180);
+      doc.line(margin, 22, pageW - margin, 22);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.text(`Report Cefalea — ${label}`, margin, 30);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(`Nome e Cognome: ${nome}`, margin, 36);
+      doc.text(`Data generazione: ${new Date().toLocaleDateString("it-IT")}`, margin, 41);
+
+      doc.setFontSize(9);
+      doc.setTextColor(80);
+      doc.text("Compila ogni riga indicando frequenza, intensità, durata e risposta ai farmaci.", margin, 47);
+      doc.setTextColor(0);
+    };
+
+    const addChartBlock = (title, imgData, yStart, maxH) => {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text(title, margin, yStart);
+
+      const boxY = yStart + 6;
+      const boxH = maxH;
+
+      doc.setDrawColor(210);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(margin, boxY, contentW, boxH, 3, 3);
+
+      if (imgData) {
+        doc.addImage(imgData, "PNG", margin, boxY + 2, contentW, boxH - 4, undefined, "FAST");
+      } else {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(120);
+        doc.text("Nessun dato disponibile.", margin + 4, boxY + 10);
+        doc.setTextColor(0);
+      }
+      return boxY + boxH + 10;
+    };
+
+    // Pagina 1
+    header();
+    let y = 55;
+    y = addChartBlock("Intensità (max) giorno per giorno", imgInt, y, 78);
+
+    // Pagina 2
+    doc.addPage();
+    header();
+    y = 55;
+    y = addChartBlock("Trigger più frequenti", imgTrig, y, 58);
+    y = addChartBlock("Farmaci più usati", imgMeds, y, 58);
+    y = addChartBlock("Posizione del dolore", imgPain, y, 58);
+
+    // Tabella
+    doc.addPage();
+    header();
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Tabella giornaliera", margin, 55);
+
+    let ty = 60;
+    const col = {
+      day: margin,
+      int: margin + 48,
+      dur: margin + 68,
+      med: margin + 88,
+      rsp: margin + 136,
+      note: margin + 160,
+    };
+
+    const drawTableHeader = () => {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setDrawColor(190);
+      doc.setFillColor(245, 245, 245);
+      doc.rect(margin, ty, contentW, 9, "F");
+
+      doc.text("Giorno", col.day + 1.5, ty + 6);
+      doc.text("Int.", col.int + 1.5, ty + 6);
+      doc.text("Dur.", col.dur + 1.5, ty + 6);
+      doc.text("Farmaci", col.med + 1.5, ty + 6);
+      doc.text("Risposta", col.rsp + 1.5, ty + 6);
+      doc.text("Note/Trigger", col.note + 1.5, ty + 6);
+
+      ty += 11;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.2);
+    };
+
+    const newPageForTable = () => {
+      doc.addPage();
+      header();
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text("Tabella giornaliera (continua)", margin, 55);
+      ty = 60;
+      drawTableHeader();
+    };
+
+    drawTableHeader();
+
+    for (const r of rowsPdf) {
+      if (ty + 9 > pageH - margin - 40) newPageForTable();
+
+      doc.setDrawColor(220);
+      doc.rect(margin, ty - 6.5, contentW, 8.5);
+
+      doc.setTextColor(r.wk === "weekend" ? 90 : 40);
+      doc.text(r.dayLabel, col.day + 1.5, ty);
+      doc.setTextColor(0);
+
+      doc.text(String(r.intensity).slice(0, 6), col.int + 1.5, ty);
+      doc.text(String(r.duration).slice(0, 8), col.dur + 1.5, ty);
+
+      const medsTxt = String(r.meds);
+      const respTxt = String(r.resp);
+      const noteTxt = String(r.note);
+
+      const medsShort = medsTxt.length > 26 ? medsTxt.slice(0, 26) + "…" : medsTxt;
+      const respShort = respTxt.length > 14 ? respTxt.slice(0, 14) + "…" : respTxt;
+
+      doc.text(medsShort, col.med + 1.5, ty);
+      doc.text(respShort, col.rsp + 1.5, ty);
+
+      const maxNoteLen = 36;
+      const n1 = noteTxt.slice(0, maxNoteLen);
+      const n2 =
+        noteTxt.length > maxNoteLen
+          ? noteTxt.slice(maxNoteLen, maxNoteLen * 2) + (noteTxt.length > maxNoteLen * 2 ? "…" : "")
+          : "";
+
+      doc.text(n1, col.note + 1.5, ty);
+      if (n2) doc.text(n2, col.note + 1.5, ty + 4.5);
+
+      ty += 9.5;
+    }
+
+    // Note medico
+    doc.addPage();
+    header();
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Note del medico / Osservazioni cliniche", margin, 55);
+
+    doc.setDrawColor(120);
+    doc.roundedRect(margin, 62, contentW, 140, 4, 4);
+
+    doc.setDrawColor(200);
+    for (let i = 0; i < 12; i++) {
+      const yLine = 72 + i * 10;
+      doc.setLineDashPattern([2, 2], 0);
+      doc.line(margin + 6, yLine, pageW - margin - 6, yLine);
+    }
+    doc.setLineDashPattern([], 0);
+
+    return doc.output("blob");
+  }
+
+  async function shareMonthlyPdf() {
+    try {
+      const m = (month?.value || (globalDate?.value || getGlobalDate()).slice(0, 7) || monthNow()).trim();
+      const blob = await generateMonthlyPdfBlob(m);
+
+      const fileName = `Report_Cefalea_${m}.pdf`;
+      const file = new File([blob], fileName, { type: "application/pdf" });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+        await navigator.share({
+          files: [file],
+          title: "Report Cefalea",
+          text: "Report mensile (PDF) — Diario Cefalea",
+        });
+        return;
+      }
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      alert("Condivisione diretta non disponibile qui: ho scaricato il PDF. Ora puoi allegarlo su WhatsApp ✅");
+    } catch (err) {
+      console.error(err);
+      alert("Errore nella generazione/condivisione del PDF: " + (err?.message || err));
+    }
+  }
+
+  /* =========================
+     Events: form submit
+     ========================= */
+  if (form) {
+    form.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+
+      const date = el("date")?.value || globalDate?.value;
+      if (!date) return alert("Inserisci la data");
+
+      const intensity = Number(el("intensity")?.value);
+      const duration = Number(el("duration")?.value);
+
+      if (!Number.isFinite(intensity) || intensity < 1 || intensity > 10) return alert("Inserisci intensità 1–10");
+      if (!Number.isFinite(duration) || duration <= 0) return alert("Inserisci durata (ore)");
+
+      const time = el("time")?.value || "";
+      const meds = getSelectedMeds();
+      const efficacy = el("efficacy")?.value || "Parziale";
+      const notes = el("notes")?.value || "";
+
+      const stressNum = Number(stress?.value || 0);
+
+      const sleepHoursRaw = el("sleepHours")?.value;
+      const sleepHoursVal = sleepHoursRaw === "" || sleepHoursRaw == null ? null : Number(sleepHoursRaw);
+
+      const weatherVal = el("weather")?.value || "";
+      const foodsVal = el("foods")?.value || "";
+      const triggersManual = getSelectedTriggers();
+
+      const trig = new Set([
+        ...triggersManual,
+        ...deducedTriggers({
+          stress: stressNum,
+          sleepHours: sleepHoursVal ?? undefined,
+          weather: weatherVal,
+          foods: foodsVal,
+        }),
+      ]);
+
+      const payload = {
+        date,
+        time,
+        intensity,
+        duration,
+        meds,
+        efficacy,
+        triggers: Array.from(trig),
+        stress: stressNum,
+        sleepHours: sleepHoursVal,
+        weather: weatherVal,
+        foods: foodsVal,
+        notes,
+        // ✅ pain
+        painPerspective: painState.persp || "front",
+        painArea: painState.area || "",
+      };
+
+      if (EDIT_ID) {
+        updateAttack(EDIT_ID, payload);
+        cancelEdit();
+      } else {
+        addAttack({ id: cryptoId(), ...payload });
+        resetFormFields();
+        setDateField(date);
+      }
+
+      syncAllToDate(date, { pushToMonth: true });
+      render();
+      renderMonthlyTable();
+      drawChartsFor(month?.value || date.slice(0, 7) || monthNow());
+    });
+  }
+
+  btnClear?.addEventListener("click", () => {
+    if (EDIT_ID) cancelEdit();
+    else resetFormFields();
+  });
+
+  btnDeleteAll?.addEventListener("click", () => {
+    const ok = confirm("Vuoi cancellare TUTTI i dati salvati in questa app?");
+    if (!ok) return;
+    localStorage.removeItem(KEY);
+    cancelEdit();
+    render();
+    renderMonthlyTable();
+    drawChartsFor(month?.value || monthNow());
+  });
+
+  month?.addEventListener("change", () => {
+    const m = month.value || monthNow();
+    render();
+    renderMonthlyTable();
+    drawChartsFor(m);
+  });
+
+  onlyWeekend?.addEventListener("change", render);
+
+  q?.addEventListener("input", () => {
+    clearTimeout(window.__qT);
+    window.__qT = setTimeout(render, 150);
+  });
+
+  btnExportMonth?.addEventListener("click", () => exportCSV(month?.value || monthNow(), "month"));
+  btnExportAll?.addEventListener("click", () => exportCSV(monthNow(), "all"));
+
+  btnBackup?.addEventListener("click", backupJSON);
+  fileImport?.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (file) importJSON(file);
+    fileImport.value = "";
+  });
+
+  btnRefreshCharts?.addEventListener("click", () => drawChartsFor(month?.value || monthNow()));
+
+  btnPrintReportTop?.addEventListener("click", printReport);
+  btnPrintReportBottom?.addEventListener("click", printReport);
+
+  btnSharePdfTop?.addEventListener("click", shareMonthlyPdf);
+  btnSharePdfBottom?.addEventListener("click", shareMonthlyPdf);
+
+  patientNameInput?.addEventListener("input", () => setPatientName(patientNameInput.value));
+
+  stress?.addEventListener("input", () => {
+    if (stressVal) stressVal.textContent = stress.value;
+  });
+
+  globalDate?.addEventListener("change", () => {
+    if (!globalDate.value) return;
+    syncAllToDate(globalDate.value, { pushToMonth: true });
+  });
+
+  el("date")?.addEventListener("change", () => {
+    const v = el("date")?.value;
+    if (v) syncAllToDate(v, { pushToMonth: true });
+  });
+
+  themeSelect?.addEventListener("change", () => setTheme(themeSelect.value));
+
+  tabs.forEach((t) => {
+    t.addEventListener("click", () => switchTo(t.getAttribute("data-view")));
+  });
+
+  /* ========= PWA install prompt ========= */
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (btnInstall) btnInstall.hidden = false;
+  });
+
+  btnInstall?.addEventListener("click", async () => {
+    if (!deferredPrompt) {
+      alert("Installazione non disponibile ora.\nApri in Chrome → menu ⋮ → 'Installa app' / 'Aggiungi a schermata Home'.");
+      return;
+    }
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    if (btnInstall) btnInstall.hidden = true;
+  });
+
+  /* =========================
+     INIT
+     ========================= */
+  function init() {
+    // theme
+    const th = getTheme();
+    if (themeSelect) themeSelect.value = th;
+    setTheme(th);
+
+    // global date + month
+    const gd = getGlobalDate();
+    if (globalDate) globalDate.value = gd;
+    setDateField(gd);
+    if (month) month.value = gd.slice(0, 7);
+
+    // name
+    if (patientNameInput) patientNameInput.value = getPatientName();
+
+    // stress badge
+    if (stressVal && stress) stressVal.textContent = stress.value;
+
+    // pain selector
+    bindPainSelector();
+    setPainUI("front", "");
+
+    setSubmitLabel();
+
+    // first render
+    render();
+    renderMonthlyTable();
+    drawChartsFor(month?.value || monthNow());
+
+    // resize charts
+    window.addEventListener("resize", () => drawChartsFor(month?.value || monthNow()));
+
+    // SW register
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      });
+    }
+  }
+
+  init();
+})();

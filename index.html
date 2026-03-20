@@ -182,106 +182,54 @@
               </div>
             </div>
 
-            <div class="head-stage" aria-label="Selettore posizione dolore">
-              <svg id="headSvgFront" class="head-svg active" viewBox="0 0 320 420" role="img" aria-label="Testa - vista frontale">
-                <defs>
-                  <radialGradient id="gHead" cx="35%" cy="20%" r="80%">
-                    <stop offset="0%" stop-color="rgba(120,200,255,.55)"/>
-                    <stop offset="55%" stop-color="rgba(60,140,220,.85)"/>
-                    <stop offset="100%" stop-color="rgba(25,85,150,.95)"/>
-                  </radialGradient>
-                  <radialGradient id="gGlow" cx="50%" cy="15%" r="60%">
-                    <stop offset="0%" stop-color="rgba(255,255,255,.45)"/>
-                    <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
-                  </radialGradient>
-                  <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
-                    <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(0,0,0,.35)"/>
-                  </filter>
-                </defs>
+            <div class="head-stage photorealistic" aria-label="Selettore posizione dolore">
+  <div id="headSvgFront" class="head-view active">
+    <img src="./assets/head-front.png" class="head-raster" alt="Testa frontale" />
+    <svg class="head-vector-overlay" viewBox="0 0 320 420">
+      <defs>
+        <filter id="glowHeatmap"><feGaussianBlur stdDeviation="8" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <path class="zone" data-zone="forehead_l" d="M160 70 L110 70 Q92 95 92 120 Q120 125 160 120 Z"/>
+      <path class="zone" data-zone="forehead_r" d="M160 70 L210 70 Q228 95 228 120 Q200 125 160 120 Z"/>
+      <path class="zone" data-zone="temple_l" d="M92 120 Q85 150 98 175 Q122 160 130 135 Q115 125 92 120 Z"/>
+      <path class="zone" data-zone="temple_r" d="M228 120 Q235 150 222 175 Q198 160 190 135 Q205 125 228 120 Z"/>
+      <path class="zone" data-zone="eye_l" d="M108 160 Q130 145 150 160 Q130 170 108 160 Z"/>
+      <path class="zone" data-zone="eye_r" d="M212 160 Q190 145 170 160 Q190 170 212 160 Z"/>
+      <path class="zone" data-zone="cheek_l" d="M112 175 Q130 170 145 185 Q138 220 120 230 Q100 210 112 175 Z"/>
+      <path class="zone" data-zone="cheek_r" d="M208 175 Q190 170 175 185 Q182 220 200 230 Q220 210 208 175 Z"/>
+      <path class="zone" data-zone="jaw_l" d="M118 235 Q140 245 150 275 Q128 295 112 280 Q102 260 118 235 Z"/>
+      <path class="zone" data-zone="jaw_r" d="M202 235 Q180 245 170 275 Q192 295 208 280 Q218 260 202 235 Z"/>
+      <path class="zone" data-zone="neck" d="M145 305 Q160 315 175 305 Q190 340 160 350 Q130 340 145 305 Z"/>
+      <path class="zone" data-zone="occipital" d="M98 178 Q110 260 160 320 Q210 260 222 178 Q210 160 190 150 Q160 165 130 150 Q110 160 98 178 Z"/>
+    </svg>
+  </div>
 
-                <rect x="10" y="10" width="300" height="400" rx="22" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.10)"/>
+  <div id="headSvgLeft" class="head-view">
+    <img src="./assets/head-left.png" class="head-raster" alt="Testa sinistra" />
+    <svg class="head-vector-overlay" viewBox="0 0 320 420">
+      <path class="zone" data-zone="forehead_l" d="M210 95 Q175 85 145 110 Q130 135 140 155 Q175 155 210 140 Z"/>
+      <path class="zone" data-zone="temple_l" d="M140 155 Q125 180 135 210 Q155 200 170 180 Q160 162 140 155 Z"/>
+      <path class="zone" data-zone="eye_l" d="M150 175 Q165 165 180 175 Q165 185 150 175 Z"/>
+      <path class="zone" data-zone="cheek_l" d="M145 195 Q165 185 185 200 Q182 235 160 245 Q140 230 145 195 Z"/>
+      <path class="zone" data-zone="jaw_l" d="M150 245 Q175 255 185 280 Q165 305 145 290 Q135 270 150 245 Z"/>
+      <path class="zone" data-zone="neck" d="M185 295 Q200 305 205 330 Q185 350 160 340 Q165 315 185 295 Z"/>
+      <path class="zone" data-zone="occipital" d="M205 110 Q235 135 240 175 Q242 240 212 290 Q190 260 195 210 Q195 155 205 110 Z"/>
+    </svg>
+  </div>
 
-                <g transform="translate(0,0)" filter="url(#softShadow)">
-                  <path d="M160 55 C110 55 78 95 78 152 C78 232 96 300 160 350 C224 300 242 232 242 152 C242 95 210 55 160 55Z" fill="url(#gHead)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
-                  <ellipse cx="138" cy="115" rx="70" ry="45" fill="url(#gGlow)" opacity=".85"/>
-                  <path d="M160 95 L160 320" stroke="rgba(255,255,255,.18)" stroke-width="2" opacity=".55"/>
-                  <path d="M112 160 C130 150 142 150 160 160 C178 150 190 150 208 160" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2" opacity=".55"/>
-                  <path d="M130 210 C145 200 175 200 190 210" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2" opacity=".55"/>
-                  <path d="M140 250 C150 260 170 260 180 250" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2" opacity=".55"/>
-                </g>
-
-                <path class="zone" data-zone="forehead_l" d="M160 70 L110 70 Q92 95 92 120 Q120 125 160 120 Z"/>
-                <path class="zone" data-zone="forehead_r" d="M160 70 L210 70 Q228 95 228 120 Q200 125 160 120 Z"/>
-                <path class="zone" data-zone="temple_l" d="M92 120 Q85 150 98 175 Q122 160 130 135 Q115 125 92 120 Z"/>
-                <path class="zone" data-zone="temple_r" d="M228 120 Q235 150 222 175 Q198 160 190 135 Q205 125 228 120 Z"/>
-                <path class="zone" data-zone="eye_l" d="M108 160 Q130 145 150 160 Q130 170 108 160 Z"/>
-                <path class="zone" data-zone="eye_r" d="M212 160 Q190 145 170 160 Q190 170 212 160 Z"/>
-                <path class="zone" data-zone="cheek_l" d="M112 175 Q130 170 145 185 Q138 220 120 230 Q100 210 112 175 Z"/>
-                <path class="zone" data-zone="cheek_r" d="M208 175 Q190 170 175 185 Q182 220 200 230 Q220 210 208 175 Z"/>
-                <path class="zone" data-zone="jaw_l" d="M118 235 Q140 245 150 275 Q128 295 112 280 Q102 260 118 235 Z"/>
-                <path class="zone" data-zone="jaw_r" d="M202 235 Q180 245 170 275 Q192 295 208 280 Q218 260 202 235 Z"/>
-                <path class="zone" data-zone="neck" d="M145 305 Q160 315 175 305 Q190 340 160 350 Q130 340 145 305 Z"/>
-                <path class="zone" data-zone="occipital" d="M98 178 Q110 260 160 320 Q210 260 222 178 Q210 160 190 150 Q160 165 130 150 Q110 160 98 178 Z"/>
-              </svg>
-
-              <svg id="headSvgLeft" class="head-svg" viewBox="0 0 320 420" role="img" aria-label="Testa - vista sinistra">
-                <defs>
-                  <radialGradient id="gHeadL" cx="35%" cy="20%" r="85%">
-                    <stop offset="0%" stop-color="rgba(120,200,255,.55)"/>
-                    <stop offset="55%" stop-color="rgba(60,140,220,.85)"/>
-                    <stop offset="100%" stop-color="rgba(25,85,150,.95)"/>
-                  </radialGradient>
-                  <filter id="softShadowL" x="-30%" y="-30%" width="160%" height="160%">
-                    <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(0,0,0,.35)"/>
-                  </filter>
-                </defs>
-
-                <rect x="10" y="10" width="300" height="400" rx="22" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.10)"/>
-
-                <g filter="url(#softShadowL)">
-                  <path d="M220 85 C175 55 115 80 105 145 C95 220 120 300 195 345 C250 300 265 235 258 170 C252 125 242 105 220 85Z" fill="url(#gHeadL)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
-                  <path d="M170 160 Q150 170 145 190" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2" opacity=".6"/>
-                  <path d="M165 225 Q150 235 140 255" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2" opacity=".6"/>
-                </g>
-
-                <path class="zone" data-zone="forehead_l" d="M210 95 Q175 85 145 110 Q130 135 140 155 Q175 155 210 140 Z"/>
-                <path class="zone" data-zone="temple_l" d="M140 155 Q125 180 135 210 Q155 200 170 180 Q160 162 140 155 Z"/>
-                <path class="zone" data-zone="eye_l" d="M150 175 Q165 165 180 175 Q165 185 150 175 Z"/>
-                <path class="zone" data-zone="cheek_l" d="M145 195 Q165 185 185 200 Q182 235 160 245 Q140 230 145 195 Z"/>
-                <path class="zone" data-zone="jaw_l" d="M150 245 Q175 255 185 280 Q165 305 145 290 Q135 270 150 245 Z"/>
-                <path class="zone" data-zone="neck" d="M185 295 Q200 305 205 330 Q185 350 160 340 Q165 315 185 295 Z"/>
-                <path class="zone" data-zone="occipital" d="M205 110 Q235 135 240 175 Q242 240 212 290 Q190 260 195 210 Q195 155 205 110 Z"/>
-              </svg>
-
-              <svg id="headSvgRight" class="head-svg" viewBox="0 0 320 420" role="img" aria-label="Testa - vista destra">
-                <defs>
-                  <radialGradient id="gHeadR" cx="65%" cy="20%" r="85%">
-                    <stop offset="0%" stop-color="rgba(120,200,255,.55)"/>
-                    <stop offset="55%" stop-color="rgba(60,140,220,.85)"/>
-                    <stop offset="100%" stop-color="rgba(25,85,150,.95)"/>
-                  </radialGradient>
-                  <filter id="softShadowR" x="-30%" y="-30%" width="160%" height="160%">
-                    <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(0,0,0,.35)"/>
-                  </filter>
-                </defs>
-
-                <rect x="10" y="10" width="300" height="400" rx="22" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.10)"/>
-
-                <g filter="url(#softShadowR)">
-                  <path d="M100 85 C145 55 205 80 215 145 C225 220 200 300 125 345 C70 300 55 235 62 170 C68 125 78 105 100 85Z" fill="url(#gHeadR)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
-                  <path d="M150 160 Q170 170 175 190" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2" opacity=".6"/>
-                  <path d="M155 225 Q170 235 180 255" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2" opacity=".6"/>
-                </g>
-
-                <path class="zone" data-zone="forehead_r" d="M110 95 Q145 85 175 110 Q190 135 180 155 Q145 155 110 140 Z"/>
-                <path class="zone" data-zone="temple_r" d="M180 155 Q195 180 185 210 Q165 200 150 180 Q160 162 180 155 Z"/>
-                <path class="zone" data-zone="eye_r" d="M170 175 Q155 165 140 175 Q155 185 170 175 Z"/>
-                <path class="zone" data-zone="cheek_r" d="M175 195 Q155 185 135 200 Q138 235 160 245 Q180 230 175 195 Z"/>
-                <path class="zone" data-zone="jaw_r" d="M170 245 Q145 255 135 280 Q155 305 175 290 Q185 270 170 245 Z"/>
-                <path class="zone" data-zone="neck" d="M135 295 Q120 305 115 330 Q135 350 160 340 Q155 315 135 295 Z"/>
-                <path class="zone" data-zone="occipital" d="M115 110 Q85 135 80 175 Q78 240 108 290 Q130 260 125 210 Q125 155 115 110 Z"/>
-              </svg>
-            </div>
+  <div id="headSvgRight" class="head-view">
+    <img src="./assets/head-right.png" class="head-raster" alt="Testa destra" />
+    <svg class="head-vector-overlay" viewBox="0 0 320 420">
+      <path class="zone" data-zone="forehead_r" d="M110 95 Q145 85 175 110 Q190 135 180 155 Q145 155 110 140 Z"/>
+      <path class="zone" data-zone="temple_r" d="M180 155 Q195 180 185 210 Q165 200 150 180 Q160 162 180 155 Z"/>
+      <path class="zone" data-zone="eye_r" d="M170 175 Q155 165 140 175 Q155 185 170 175 Z"/>
+      <path class="zone" data-zone="cheek_r" d="M175 195 Q155 185 135 200 Q138 235 160 245 Q180 230 175 195 Z"/>
+      <path class="zone" data-zone="jaw_r" d="M170 245 Q145 255 135 280 Q155 305 175 290 Q185 270 170 245 Z"/>
+      <path class="zone" data-zone="neck" d="M135 295 Q120 305 115 330 Q135 350 160 340 Q155 315 135 295 Z"/>
+      <path class="zone" data-zone="occipital" d="M115 110 Q85 135 80 175 Q78 240 108 290 Q130 260 125 210 Q125 155 115 110 Z"/>
+    </svg>
+  </div>
+</div>
 
             <div class="hint" style="margin-top:10px">
               Suggerimento: se non vuoi indicare la sede, lascia “—”.

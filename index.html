@@ -1,551 +1,79 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0b1220" />
-  <title>Diario Cefalea</title>
-
-  <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" href="./icons/icon-192.png" />
-  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
-
-  <link rel="stylesheet" href="./style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cefalea Diary Pro</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#2196F3">
 </head>
-
 <body>
-  <header class="app-header">
-    <div class="brand">
-      <img class="logo" src="./assets/ptv.png" alt="Fondazione PTV" />
-      <div class="brand-text">
-        <div class="brand-title">Diario Cefalea</div>
-        <div class="brand-subtitle">Registro • Trigger • Grafici • Report PDF</div>
-      </div>
-    </div>
+    <header class="app-header">
+        <h1>Cefalea Diary Pro</h1>
+    </header>
 
-    <div class="header-actions">
-      <button id="btnInstall" class="btn btn-ghost" hidden>⬇️ Installa</button>
-
-      <div class="header-field">
-        <div class="label">Data</div>
-        <input id="globalDate" type="date" class="input" />
-      </div>
-
-      <div class="header-field">
-        <div class="label">Mese</div>
-        <input id="month" type="month" class="input" />
-      </div>
-
-      <div class="header-field">
-        <div class="label">Tema</div>
-        <select id="themeSelect" class="input">
-          <option value="auto">Auto</option>
-          <option value="dark">Scuro</option>
-          <option value="light">Chiaro</option>
-        </select>
-      </div>
-    </div>
-  </header>
-
-  <nav class="tabs" aria-label="Navigazione">
-    <button class="tab active" data-view="diario" data-accent="blue" type="button">
-      <span class="tab-ico">📝</span><span>Diario</span>
-    </button>
-    <button class="tab" data-view="statistiche" data-accent="cyan" type="button">
-      <span class="tab-ico">📊</span><span>Statistiche</span>
-    </button>
-    <button class="tab" data-view="report" data-accent="amber" type="button">
-      <span class="tab-ico">🧾</span><span>Report PDF</span>
-    </button>
-    <button class="tab" data-view="impostazioni" data-accent="violet" type="button">
-      <span class="tab-ico">⚙️</span><span>Impostazioni</span>
-    </button>
-  </nav>
-
-  <main class="container">
-    <!-- =======================
-         DIARIO
-         ======================= -->
-    <section id="view-diario" class="view active">
-      <div class="card" id="card-form">
-        <div class="section-title">
-          <div class="section-title-left">
-            <h2>Inserisci attacco</h2>
-            <p class="muted">Compila i campi principali e aggiungi trigger / note se necessario.</p>
-          </div>
-          <div class="pill">Touch-friendly</div>
-        </div>
-
-        <form id="attackForm" class="form">
-          <div class="grid">
-            <div class="field">
-              <label class="label" for="date">Data</label>
-              <input id="date" class="input" type="date" />
-              <div class="hint">Suggerimento: la data qui aggiorna automaticamente anche la data globale.</div>
+    <main id="app">
+        <section class="card map-section">
+            <h2>Mappatura del Dolore</h2>
+            <div class="views-toggle">
+                <button class="active" data-view="anterior">Anteriore</button>
+                <button data-view="posterior">Posteriore</button>
             </div>
 
-            <div class="field">
-              <label class="label" for="time">Ora (opzionale)</label>
-              <input id="time" class="input" type="time" />
+            <div class="svg-container">
+                <svg id="painMapSvg" viewBox="0 0 200 250">
+                    <g id="anteriorView">
+                        <path class="pain-zone" data-zone="Fronte" d="M60,50 Q100,20 140,50 Q140,80 60,80 Z" />
+                        <path class="pain-zone" data-zone="Tempia Sinistra" d="M45,60 Q55,70 60,100 Q45,100 45,60 Z" />
+                        <path class="pain-zone" data-zone="Tempia Destra" d="M155,60 Q145,70 140,100 Q155,100 155,60 Z" />
+                        <path class="pain-zone" data-zone="Viso/Occhi" d="M60,80 Q100,100 140,80 Q130,140 100,160 Q70,140 60,80 Z" />
+                        <text x="100" y="110" text-anchor="middle" fill="#ccc" font-size="10" pointer-events="none">Vista Anteriore</text>
+                    </g>
+                    <g id="posteriorView" style="display: none;">
+                        <path class="pain-zone" data-zone="Occipitale" d="M60,50 Q100,10 140,50 Q150,110 100,130 Q50,110 60,50 Z" />
+                        <path class="pain-zone" data-zone="Cervicale" d="M80,120 Q100,115 120,120 L130,180 Q100,190 70,180 Z" />
+                        <text x="100" y="110" text-anchor="middle" fill="#ccc" font-size="10" pointer-events="none">Vista Posteriore</text>
+                    </g>
+                </svg>
             </div>
 
-            <div class="field">
-              <label class="label" for="intensity">Intensità (1–10)</label>
-              <input id="intensity" class="input" type="number" min="1" max="10" step="1" placeholder="Es. 7" />
+            <div class="intensity-slider">
+                <label>Intensità: <strong id="intensityVal">0</strong>/10</label>
+                <input type="range" id="intensity" min="0" max="10" value="0">
             </div>
+        </section>
 
-            <div class="field">
-              <label class="label" for="duration">Durata (ore)</label>
-              <input id="duration" class="input" type="number" min="0.5" step="0.5" placeholder="Es. 6" />
+        <section class="card clinical-section">
+            <div class="input-group">
+                <h3>Sintomi</h3>
+                <div id="symptomsList" class="badge-container"></div>
             </div>
-          </div>
-
-          <div class="field">
-            <label class="label" for="meds">Farmaci assunti (selezione multipla)</label>
-            <select id="meds" class="input" multiple size="6">
-              <option value="Relpax">Relpax</option>
-              <option value="Okitask (FANS)">Okitask (FANS)</option>
-              <option value="Ibuprofene (FANS)">Ibuprofene (FANS)</option>
-              <option value="Naproxene (FANS)">Naproxene (FANS)</option>
-              <option value="Paracetamolo">Paracetamolo</option>
-              <option value="Altro (FANS)">Altro (FANS)</option>
-              <option value="Nessuno">Nessuno</option>
-            </select>
-            <div class="hint">Tip: su Android puoi tenere premuto e selezionare più opzioni.</div>
-          </div>
-
-          <div class="grid">
-            <div class="field">
-              <label class="label" for="efficacy">Risposta ai farmaci</label>
-              <select id="efficacy" class="input">
-                <option value="Nessuna">Nessuna</option>
-                <option value="Parziale" selected>Parziale</option>
-                <option value="Buona">Buona</option>
-                <option value="Ottima">Ottima</option>
-              </select>
+            <div class="input-group">
+                <h3>Trigger</h3>
+                <div id="triggersList" class="badge-container"></div>
             </div>
-
-            <div class="field">
-              <label class="label" for="stress">Stress (0–10) <span class="badge-mini" id="stressVal">0</span></label>
-              <input id="stress" class="input" type="range" min="0" max="10" step="1" value="0" />
-              <div class="hint">Valore indicativo (più alto = più stress).</div>
+            <div class="input-group">
+                <h3>Farmaci Assunti</h3>
+                <div class="flex-input">
+                    <input type="text" id="drugInput" placeholder="Es. Sumatriptan 50mg">
+                    <button id="addDrugBtn" class="btn-secondary">+</button>
+                </div>
+                <div id="usedMeds" class="badge-container"></div>
             </div>
-          </div>
+            <button class="btn-primary" id="saveAttack">REGISTRA ATTACCO</button>
+        </section>
 
-          <div class="grid">
-            <div class="field">
-              <label class="label" for="sleepHours">Ore di sonno (opzionale)</label>
-              <input id="sleepHours" class="input" type="number" min="0" max="24" step="0.5" placeholder="Es. 5.5" />
+        <section class="card history-section">
+            <div class="history-header">
+                <h2>Storico Recente</h2>
+                <button id="generatePdf" class="btn-outline">Scarica PDF</button>
             </div>
-            <div class="field">
-              <label class="label" for="weather">Meteo (opzionale)</label>
-              <input id="weather" class="input" type="text" placeholder="Es. pioggia / sbalzo temperatura" />
-            </div>
-            <div class="field">
-              <label class="label" for="foods">Alimenti (opzionale)</label>
-              <input id="foods" class="input" type="text" placeholder="Es. cioccolato, vino, salumi..." />
-            </div>
-          </div>
+            <div id="historyEntries" class="history-list"></div>
+        </section>
+    </main>
 
-          <div class="field">
-            <label class="label">Trigger (spuntare se presenti)</label>
-            <div id="triggerChips" class="chips">
-              <label class="chip"><input type="checkbox" value="Stress" /> Stress</label>
-              <label class="chip"><input type="checkbox" value="Poco sonno" /> Poco sonno</label>
-              <label class="chip"><input type="checkbox" value="Meteo" /> Meteo</label>
-              <label class="chip"><input type="checkbox" value="Alimenti" /> Alimenti</label>
-              <label class="chip"><input type="checkbox" value="Luci/Schermi" /> Luci/Schermi</label>
-              <label class="chip"><input type="checkbox" value="Rumore" /> Rumore</label>
-              <label class="chip"><input type="checkbox" value="Fatica" /> Fatica</label>
-              <label class="chip"><input type="checkbox" value="Ciclo/Ormoni" /> Ciclo/Ormoni</label>
-              <label class="chip"><input type="checkbox" value="Collo/Tensione" /> Collo/Tensione</label>
-            </div>
-            <div class="hint">Nota: alcuni trigger possono essere dedotti automaticamente (es. stress alto, poco sonno).</div>
-          </div>
-
-          <!-- ✅ POSIZIONE DOLORE (NUOVO) -->
-          <div class="head-card">
-            <div class="head-title">
-              <div>
-                <div class="head-title-top">AGGIUNGI DETTAGLI EPISODIO (OPZIONALE)</div>
-                <div class="head-title-main">Posizione del tuo dolore</div>
-                <div class="muted">Tocca una zona sulla testa: verrà evidenziata. Puoi selezionare anche zone sia a sinistra che a destra.</div>
-              </div>
-            </div>
-
-            <div class="head-controls">
-              <div class="segmented" role="tablist" aria-label="Scegli prospettiva">
-                <button type="button" class="seg-btn active" data-pain-view="front">Davanti</button>
-                <button type="button" class="seg-btn" data-pain-view="left">Sinistra</button>
-                <button type="button" class="seg-btn" data-pain-view="right">Destra</button>
-              </div>
-
-              <div class="head-right">
-                <div id="painSelectionLabel" class="pill-soft">Selezione: —</div>
-                <button id="btnPainClear" type="button" class="btn btn-ghost">Pulisci</button>
-              </div>
-            </div>
-
-            <div class="head-stage" aria-label="Selettore posizione dolore">
-              <!-- FRONT -->
-              <svg id="headSvgFront" class="head-svg active" viewBox="0 0 320 420" role="img" aria-label="Testa - vista frontale">
-                <defs>
-                  <radialGradient id="gHead" cx="35%" cy="20%" r="80%">
-                    <stop offset="0%" stop-color="rgba(120,200,255,.55)"/>
-                    <stop offset="55%" stop-color="rgba(60,140,220,.85)"/>
-                    <stop offset="100%" stop-color="rgba(25,85,150,.95)"/>
-                  </radialGradient>
-                  <radialGradient id="gGlow" cx="50%" cy="15%" r="60%">
-                    <stop offset="0%" stop-color="rgba(255,255,255,.45)"/>
-                    <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
-                  </radialGradient>
-                  <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
-                    <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(0,0,0,.35)"/>
-                  </filter>
-                </defs>
-
-                <!-- card background -->
-                <rect x="10" y="10" width="300" height="400" rx="22" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.10)"/>
-
-                <!-- head silhouette -->
-                <g transform="translate(0,0)" filter="url(#softShadow)">
-                  <path d="M160 55
-                           C110 55 78 95 78 152
-                           C78 232 96 300 160 350
-                           C224 300 242 232 242 152
-                           C242 95 210 55 160 55Z"
-                        fill="url(#gHead)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
-
-                  <!-- highlight -->
-                  <ellipse cx="138" cy="115" rx="70" ry="45" fill="url(#gGlow)" opacity=".85"/>
-
-                  <!-- facial guide (light) -->
-                  <path d="M160 95 L160 320" stroke="rgba(255,255,255,.18)" stroke-width="2" opacity=".55"/>
-                  <path d="M112 160 C130 150 142 150 160 160 C178 150 190 150 208 160"
-                        fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2" opacity=".55"/>
-                  <path d="M130 210 C145 200 175 200 190 210" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2" opacity=".55"/>
-                  <path d="M140 250 C150 260 170 260 180 250" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2" opacity=".55"/>
-                </g>
-
-                <!-- clickable zones (transparent, highlight on select) -->
-                <!-- Forehead left/right -->
-                <path class="zone" data-zone="forehead_l" d="M160 70 L110 70 Q92 95 92 120 Q120 125 160 120 Z"/>
-                <path class="zone" data-zone="forehead_r" d="M160 70 L210 70 Q228 95 228 120 Q200 125 160 120 Z"/>
-
-                <!-- Temple left/right -->
-                <path class="zone" data-zone="temple_l" d="M92 120 Q85 150 98 175 Q122 160 130 135 Q115 125 92 120 Z"/>
-                <path class="zone" data-zone="temple_r" d="M228 120 Q235 150 222 175 Q198 160 190 135 Q205 125 228 120 Z"/>
-
-                <!-- Eye left/right -->
-                <path class="zone" data-zone="eye_l" d="M108 160 Q130 145 150 160 Q130 170 108 160 Z"/>
-                <path class="zone" data-zone="eye_r" d="M212 160 Q190 145 170 160 Q190 170 212 160 Z"/>
-
-                <!-- Cheek left/right -->
-                <path class="zone" data-zone="cheek_l" d="M112 175 Q130 170 145 185 Q138 220 120 230 Q100 210 112 175 Z"/>
-                <path class="zone" data-zone="cheek_r" d="M208 175 Q190 170 175 185 Q182 220 200 230 Q220 210 208 175 Z"/>
-
-                <!-- Jaw left/right -->
-                <path class="zone" data-zone="jaw_l" d="M118 235 Q140 245 150 275 Q128 295 112 280 Q102 260 118 235 Z"/>
-                <path class="zone" data-zone="jaw_r" d="M202 235 Q180 245 170 275 Q192 295 208 280 Q218 260 202 235 Z"/>
-
-                <!-- Neck -->
-                <path class="zone" data-zone="neck" d="M145 305 Q160 315 175 305 Q190 340 160 350 Q130 340 145 305 Z"/>
-
-                <!-- Occipital (back-of-head feeling - selectable even in front) -->
-                <path class="zone" data-zone="occipital" d="M98 178 Q110 260 160 320 Q210 260 222 178 Q210 160 190 150 Q160 165 130 150 Q110 160 98 178 Z"/>
-
-              </svg>
-
-              <!-- LEFT -->
-              <svg id="headSvgLeft" class="head-svg" viewBox="0 0 320 420" role="img" aria-label="Testa - vista sinistra">
-                <defs>
-                  <radialGradient id="gHeadL" cx="35%" cy="20%" r="85%">
-                    <stop offset="0%" stop-color="rgba(120,200,255,.55)"/>
-                    <stop offset="55%" stop-color="rgba(60,140,220,.85)"/>
-                    <stop offset="100%" stop-color="rgba(25,85,150,.95)"/>
-                  </radialGradient>
-                  <filter id="softShadowL" x="-30%" y="-30%" width="160%" height="160%">
-                    <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(0,0,0,.35)"/>
-                  </filter>
-                </defs>
-
-                <rect x="10" y="10" width="300" height="400" rx="22" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.10)"/>
-
-                <g filter="url(#softShadowL)">
-                  <path d="M220 85
-                           C175 55 115 80 105 145
-                           C95 220 120 300 195 345
-                           C250 300 265 235 258 170
-                           C252 125 242 105 220 85Z"
-                        fill="url(#gHeadL)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
-
-                  <path d="M170 160 Q150 170 145 190" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2" opacity=".6"/>
-                  <path d="M165 225 Q150 235 140 255" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2" opacity=".6"/>
-                </g>
-
-                <!-- clickable zones LEFT side -->
-                <path class="zone" data-zone="forehead_l" d="M210 95 Q175 85 145 110 Q130 135 140 155 Q175 155 210 140 Z"/>
-                <path class="zone" data-zone="temple_l" d="M140 155 Q125 180 135 210 Q155 200 170 180 Q160 162 140 155 Z"/>
-                <path class="zone" data-zone="eye_l" d="M150 175 Q165 165 180 175 Q165 185 150 175 Z"/>
-                <path class="zone" data-zone="cheek_l" d="M145 195 Q165 185 185 200 Q182 235 160 245 Q140 230 145 195 Z"/>
-                <path class="zone" data-zone="jaw_l" d="M150 245 Q175 255 185 280 Q165 305 145 290 Q135 270 150 245 Z"/>
-                <path class="zone" data-zone="neck" d="M185 295 Q200 305 205 330 Q185 350 160 340 Q165 315 185 295 Z"/>
-                <path class="zone" data-zone="occipital" d="M205 110 Q235 135 240 175 Q242 240 212 290 Q190 260 195 210 Q195 155 205 110 Z"/>
-              </svg>
-
-              <!-- RIGHT -->
-              <svg id="headSvgRight" class="head-svg" viewBox="0 0 320 420" role="img" aria-label="Testa - vista destra">
-                <defs>
-                  <radialGradient id="gHeadR" cx="65%" cy="20%" r="85%">
-                    <stop offset="0%" stop-color="rgba(120,200,255,.55)"/>
-                    <stop offset="55%" stop-color="rgba(60,140,220,.85)"/>
-                    <stop offset="100%" stop-color="rgba(25,85,150,.95)"/>
-                  </radialGradient>
-                  <filter id="softShadowR" x="-30%" y="-30%" width="160%" height="160%">
-                    <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(0,0,0,.35)"/>
-                  </filter>
-                </defs>
-
-                <rect x="10" y="10" width="300" height="400" rx="22" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.10)"/>
-
-                <g filter="url(#softShadowR)">
-                  <path d="M100 85
-                           C145 55 205 80 215 145
-                           C225 220 200 300 125 345
-                           C70 300 55 235 62 170
-                           C68 125 78 105 100 85Z"
-                        fill="url(#gHeadR)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
-
-                  <path d="M150 160 Q170 170 175 190" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2" opacity=".6"/>
-                  <path d="M155 225 Q170 235 180 255" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2" opacity=".6"/>
-                </g>
-
-                <!-- clickable zones RIGHT side -->
-                <path class="zone" data-zone="forehead_r" d="M110 95 Q145 85 175 110 Q190 135 180 155 Q145 155 110 140 Z"/>
-                <path class="zone" data-zone="temple_r" d="M180 155 Q195 180 185 210 Q165 200 150 180 Q160 162 180 155 Z"/>
-                <path class="zone" data-zone="eye_r" d="M170 175 Q155 165 140 175 Q155 185 170 175 Z"/>
-                <path class="zone" data-zone="cheek_r" d="M175 195 Q155 185 135 200 Q138 235 160 245 Q180 230 175 195 Z"/>
-                <path class="zone" data-zone="jaw_r" d="M170 245 Q145 255 135 280 Q155 305 175 290 Q185 270 170 245 Z"/>
-                <path class="zone" data-zone="neck" d="M135 295 Q120 305 115 330 Q135 350 160 340 Q155 315 135 295 Z"/>
-                <path class="zone" data-zone="occipital" d="M115 110 Q85 135 80 175 Q78 240 108 290 Q130 260 125 210 Q125 155 115 110 Z"/>
-              </svg>
-            </div>
-
-            <div class="hint" style="margin-top:10px">
-              Suggerimento: se non vuoi indicare la sede, lascia “—”.
-            </div>
-          </div>
-          <!-- ✅ FINE POSIZIONE DOLORE -->
-
-          <div class="field">
-            <label class="label" for="notes">Note (opzionale)</label>
-            <textarea id="notes" class="input textarea" rows="3" placeholder="Es. nausea, fotofobia, riposo a letto..."></textarea>
-          </div>
-
-          <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Salva attacco</button>
-            <button id="btnClear" type="button" class="btn btn-ghost">Svuota campi</button>
-          </div>
-        </form>
-      </div>
-
-      <div class="card" id="card-registro">
-        <div class="section-title">
-          <div class="section-title-left">
-            <h2>Registro</h2>
-            <p class="muted">Filtra per weekend/feriali e cerca per parole chiave. Il mese è quello in alto.</p>
-          </div>
-          <div id="stats" class="stats-inline"></div>
-        </div>
-
-        <div class="filters">
-          <div class="filter-row">
-            <div class="field">
-              <label class="label" for="onlyWeekend">Filtro</label>
-              <select id="onlyWeekend" class="input">
-                <option value="all" selected>Tutti</option>
-                <option value="weekend">Solo weekend</option>
-                <option value="weekday">Solo feriali</option>
-              </select>
-            </div>
-
-            <div class="field grow">
-              <label class="label" for="q">Cerca</label>
-              <input id="q" class="input" type="text" placeholder="Relpax, nausea, Meteo, 2025-11-12..." />
-            </div>
-
-            <div class="field actions">
-              <label class="label">Azioni</label>
-              <div class="btn-row">
-                <button id="btnExportMonth" type="button" class="btn btn-ghost">Esporta CSV mese</button>
-                <button id="btnExportAll" type="button" class="btn btn-ghost">Esporta CSV tutto</button>
-                <button id="btnDeleteAll" type="button" class="btn btn-danger">Cancella tutto</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="table-wrap">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Intensità</th>
-                <th>Durata</th>
-                <th>Farmaci</th>
-                <th>Risposta</th>
-                <th>Trigger</th>
-                <th>Sede dolore</th>
-                <th>Note</th>
-                <th style="text-align:right">Azioni</th>
-              </tr>
-            </thead>
-            <tbody id="rows"></tbody>
-          </table>
-        </div>
-
-        <div id="cards" class="cards"></div>
-      </div>
-    </section>
-
-    <!-- =======================
-         STATISTICHE
-         ======================= -->
-    <section id="view-statistiche" class="view">
-      <div class="card">
-        <div class="section-title">
-          <div class="section-title-left">
-            <h2>Statistiche</h2>
-            <p class="muted">Grafici mensili (leggibili anche in stampa PDF). Il mese è quello in alto.</p>
-          </div>
-          <button id="btnRefreshCharts" class="btn btn-ghost" type="button">Aggiorna grafici</button>
-        </div>
-
-        <div class="chart-grid">
-          <div class="chart-card">
-            <div class="chart-head">
-              <h3>Intensità (max) giorno per giorno</h3>
-              <span class="chip-soft">tutti i giorni visibili</span>
-            </div>
-            <canvas id="chartIntensity" class="chart-canvas" aria-label="Grafico intensità"></canvas>
-            <p class="hint">Barre: intensità massima del giorno (0 = nessun attacco).</p>
-          </div>
-
-          <div class="chart-card">
-            <div class="chart-head">
-              <h3>Trigger più frequenti</h3>
-              <span class="chip-soft">manuali + dedotti</span>
-            </div>
-            <canvas id="chartTriggers" class="chart-canvas" aria-label="Grafico trigger"></canvas>
-            <p class="hint">Conteggio dei trigger selezionati o dedotti (stress alto, poco sonno...).</p>
-          </div>
-
-          <div class="chart-card">
-            <div class="chart-head">
-              <h3>Sedi del dolore più frequenti</h3>
-              <span class="chip-soft">front/left/right</span>
-            </div>
-            <canvas id="chartPain" class="chart-canvas" aria-label="Grafico sedi dolore"></canvas>
-            <p class="hint">Conteggio delle zone selezionate nella testa.</p>
-          </div>
-
-          <div class="chart-card">
-            <div class="chart-head">
-              <h3>Farmaci più usati</h3>
-              <span class="chip-soft">top 10</span>
-            </div>
-            <canvas id="chartMeds" class="chart-canvas" aria-label="Grafico farmaci"></canvas>
-            <p class="hint">Conteggio dei farmaci assunti durante gli attacchi.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- =======================
-         REPORT PDF
-         ======================= -->
-    <section id="view-report" class="view">
-      <div class="card">
-        <div class="section-title">
-          <div class="section-title-left">
-            <h2>Report mensile (PDF / Condivisione)</h2>
-            <p class="muted">La data globale e il mese in alto aggiornano automaticamente questa tabella.</p>
-          </div>
-          <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end">
-            <button id="btnPrintReportTop" type="button" class="btn btn-ghost">Stampa</button>
-            <button id="btnSharePdfTop" type="button" class="btn btn-primary">Condividi PDF (WhatsApp)</button>
-          </div>
-        </div>
-
-        <div class="table-wrap">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Giorno</th>
-                <th>Intensità</th>
-                <th>Durata</th>
-                <th>Farmaci</th>
-                <th>Risposta</th>
-                <th>Note / Trigger / Sede dolore</th>
-                <th style="text-align:right">Azioni</th>
-              </tr>
-            </thead>
-            <tbody id="monthlyRows"></tbody>
-          </table>
-        </div>
-
-        <div class="footer-actions">
-          <div class="hint">
-            “Condividi PDF” apre il pannello di condivisione Android: scegli WhatsApp e poi la chat.
-          </div>
-          <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end">
-            <button id="btnPrintReportBottom" type="button" class="btn btn-ghost">Stampa</button>
-            <button id="btnSharePdfBottom" type="button" class="btn btn-primary">Condividi PDF (WhatsApp)</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- =======================
-         IMPOSTAZIONI
-         ======================= -->
-    <section id="view-impostazioni" class="view">
-      <div class="card">
-        <div class="section-title">
-          <div class="section-title-left">
-            <h2>Impostazioni</h2>
-            <p class="muted">Nome in intestazione del report e backup/import dati.</p>
-          </div>
-        </div>
-
-        <div class="grid">
-          <div class="field">
-            <label class="label" for="patientName">Nome e Cognome (per intestazione Report)</label>
-            <input id="patientName" class="input" type="text" placeholder="Es. Mario Rossi" />
-            <div class="hint">Il nome verrà mostrato nel PDF insieme a “Dr.ssa Maria Albanese”.</div>
-          </div>
-        </div>
-
-        <div class="grid">
-          <div class="field">
-            <label class="label">Backup</label>
-            <button id="btnBackup" class="btn btn-ghost" type="button">Scarica backup JSON</button>
-            <div class="hint">Salva tutti i dati in un file JSON.</div>
-          </div>
-
-          <div class="field">
-            <label class="label" for="fileImport">Import</label>
-            <input id="fileImport" class="input" type="file" accept="application/json" />
-            <div class="hint">Importa un backup JSON (unisce i dati esistenti).</div>
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <!-- jsPDF per generare un file PDF reale (da condividere su WhatsApp) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-  <script src="./app.js"></script>
+    <script src="libs/jspdf.umd.min.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>

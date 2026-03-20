@@ -143,9 +143,13 @@
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
   }
+
+  // AGGIORNAMENTO DI SICUREZZA: Fallback crittografico per evitare collisioni su localStorage
   function cryptoId() {
     if (window.crypto?.randomUUID) return crypto.randomUUID();
-    return "id_" + Math.random().toString(16).slice(2) + "_" + Date.now();
+    const arr = new Uint32Array(4);
+    window.crypto.getRandomValues(arr);
+    return "id_" + Array.from(arr, v => v.toString(16).padStart(8, '0')).join('');
   }
 
   /* =========================
@@ -185,7 +189,6 @@
 
   /* =========================
      ✅ Migrazione semplice se la versione precedente sembrava “vuota”
-     (Capita quando si cambia KEY e sembra che “si azzera tutto”)
      ========================= */
   function migrateIfNeeded() {
     try {
@@ -1384,7 +1387,11 @@
 
   async function generateMonthlyPdfBlob(yyyyMM) {
     const jspdf = window.jspdf?.jsPDF;
-    if (!jspdf) throw new Error("jsPDF non disponibile");
+    // AGGIORNAMENTO DI SICUREZZA: Protezione contro fallimento offline
+    if (!jspdf) {
+      alert("ATTENZIONE: La libreria PDF (jsPDF) non è caricata.\\nAssicurati di aver scaricato e inserito jspdf.umd.min.js nella cartella /libs/ per l'uso offline.");
+      throw new Error("jsPDF non disponibile in locale");
+    }
 
     drawChartsFor(yyyyMM);
     renderMonthlyTable();

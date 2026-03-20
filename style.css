@@ -1,12 +1,12 @@
 /* =========================
    Diario Cefalea - style.css (COMPLETO E AGGIORNATO)
-   Versione: Pro Élite Fotorealistico v38.5
-   Logica: CSS Standard + Iniezione Motore Heatmap Ibrido
+   Versione: Pro Élite Fotorealistico v38.6 (Con Modulo Temi)
+   Logica: CSS Standard + Iniezione Motore Heatmap Ibrido + Temi Dinamici
    ========================= */
 
 /* ========= Reset & Base ========= */
 :root {
-  /* Temi base - verranno sovrascritti dal JS data-theme */
+  /* Temi base (Scuro di default) - verranno sovrascritti dal JS data-theme */
   --bg: #0b1220;
   --bg-app: #111a2d;
   --card: #18243e;
@@ -26,6 +26,45 @@
 
   --shadow: 0 10px 30px rgba(0,0,0,0.3);
   --radius: 12px;
+}
+
+/* ==========================================================
+   SISTEMA TEMI (Chiaro / Scuro / Auto)
+   ========================================================== */
+
+/* 1. Forzatura Tema Chiaro */
+html[data-theme="light"] {
+  --bg: #f0f4f8;
+  --bg-app: #ffffff;
+  --card: #ffffff;
+  --card2: #f8fafc;
+  --line: #e2e8f0;
+  --text: #0f172a;
+  --muted: #64748b;
+}
+
+/* 2. Forzatura Tema Scuro (già default in :root, ma lo rinforziamo) */
+html[data-theme="dark"] {
+  --bg: #0b1220;
+  --bg-app: #111a2d;
+  --card: #18243e;
+  --card2: #24314f;
+  --line: #2d3b5a;
+  --text: #ffffff;
+  --muted: #a6b3d1;
+}
+
+/* 3. Modalità Auto (Legge le preferenze di sistema del dispositivo) */
+@media (prefers-color-scheme: light) {
+  html[data-theme="auto"] {
+    --bg: #f0f4f8;
+    --bg-app: #ffffff;
+    --card: #ffffff;
+    --card2: #f8fafc;
+    --line: #e2e8f0;
+    --text: #0f172a;
+    --muted: #64748b;
+  }
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
